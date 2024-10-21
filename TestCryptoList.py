@@ -11,8 +11,9 @@ st.markdown(
     <style>
     /* 사이드바 배경 및 텍스트 스타일 변경 */
     .sidebar .sidebar-content {
-        background-color: #40E0D0;
+        background-color: #32CD99;
         color: white;
+        padding: 10px;
     }
     .sidebar .sidebar-content h2, h3, h4 {
         color: #ffffff;
@@ -20,14 +21,14 @@ st.markdown(
     
     /* 페이지 제목 및 헤더 스타일 변경 */
     h2, h3, h4 {
-        color: #40E0D0;
+        color: #32CD99;
         font-family: 'Arial', sans-serif;
         font-weight: bold;
     }
     
     /* 버튼 스타일 변경 */
     .stButton>button {
-        background-color: #40E0D0;
+        background-color: #32CD99;
         color: white;
         border-radius: 8px;
         border: none;
@@ -52,7 +53,7 @@ st.markdown(
         border-bottom: 1px solid #ddd;
     }
     th {
-        background-color: #40E0D0;
+        background-color: #32CD99;
         color: white;
         font-weight: bold;
     }
@@ -65,14 +66,14 @@ st.markdown(
         background-color: #f0f8ff;
         color: #333333;
         font-size: 14px;
-        border: 2px solid #40E0D0;
+        border: 2px solid #32CD99;
         border-radius: 8px;
         padding: 10px;
     }
     
     /* 선택 박스 스타일 */
     .stSelectbox>div>div {
-        border: 2px solid #40E0D0;
+        border: 2px solid #32CD99;
         border-radius: 8px;
     }
 
@@ -80,187 +81,200 @@ st.markdown(
     .css-1aumxhk {
         color: #333333;
         font-weight: bold;
-        border-bottom: 2px solid #40E0D0;
+        border-bottom: 2px solid #32CD99;
         padding-bottom: 10px;
     }
 
+    /* 사이드바 버튼 스타일 */
+    .stButton>button {
+        margin-bottom: 10px;
+        width: 100%;
+        background-color: #32CD99;
+        color: white;
+        border: none;
+        padding: 10px;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: bold;
+        transition: background-color 0.3s ease;
+    }
+    .stButton>button:hover {
+        background-color: #2aa198;
+    }
+    
+    /* 로고 스타일링 */
+    .logo {
+        display: block;
+        margin: 0 auto;
+        width: 80%;
+        max-width: 150px;
+    }
     </style>
     """,
     unsafe_allow_html=True
 )
 
+# 가상자산 정보 가져오기 함수
 def get_all_crypto_info():
     url = "https://api.bithumb.com/public/ticker/ALL_KRW"
     response = requests.get(url)
-    
     if response.status_code == 200:
         try:
             data = response.json()
             if data['status'] == '0000':
                 return data['data']
         except ValueError:
-            print("Failed to parse crypto info response as JSON")
+            st.error("데이터를 파싱하는 데 실패했습니다.")
+    else:
+        st.error("데이터를 가져오지 못했습니다.")
     return {}
 
-def get_all_market_info():
-    # 종목 정보 가져오기
-    market_url = "https://api.bithumb.com/v1/market/all?isDetails=false"    # API 엔드포인트 URL
-    headers = {"accept": "application/json"}    # 헤더 설정 (필요 시 수정)
-    response = requests.get(market_url, headers=headers)    # API 요청 보내기
-    data = response.json()  # 종목 정보 추출
-        
-    return data
-
-def show_crypto_candlestick_chart(symbol):
-    url = f"https://api.bithumb.com/public/candlestick/{symbol}_KRW/1h"  # 최근 1시간 데이터
+# 성과 분석: 매주 1,000원 적립식 투자 로직
+def show_investment_performance():
+    # 가상자산 가격 데이터 받아오기
+    url = "https://api.bithumb.com/public/ticker/BTC_KRW"
     response = requests.get(url)
-    
     if response.status_code == 200:
         data = response.json()
         if data['status'] == '0000':
-            ohlcv_data = data['data']
-            df = pd.DataFrame(ohlcv_data, columns=['timestamp', 'open', 'close', 'high', 'low', 'volume'])
-            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-            df.sort_values('timestamp', inplace=True)
+            current_price = float(data['data']['closing_price'])
+        else:
+            st.error("데이터를 가져오지 못했습니다.")
+            return
+    else:
+        st.error("데이터를 가져오지 못했습니다.")
+        return
+    
+    # 매주 1,000원씩 적립식 투자 시뮬레이션
+    investment_data = {
+        '날짜': pd.date_range(end=pd.Timestamp.now(), periods=12, freq='W').strftime('%Y-%m-%d'),  # 최근 3개월 동안의 매주 날짜
+        '가격 (KRW)': [current_price * (1 + (i * 0.01)) for i in range(12)]  # 임의로 가격 변동 예시
+    }
+    df = pd.DataFrame(investment_data)
+    
+    # 매주 투자할 금액
+    weekly_investment = 1000
+    
+    # 투자 로직: 매주 가격에 맞춰 적립식으로 투자
+    df['투자 금액 (KRW)'] = weekly_investment
+    df['매수량'] = df['투자 금액 (KRW)'] / df['가격 (KRW)']
+    df['누적 매수량'] = df['매수량'].cumsum()
+    df['누적 투자 금액 (KRW)'] = weekly_investment * (df.index + 1)
+    df['평균 매수 가격 (KRW)'] = (df['누적 투자 금액 (KRW)'] / df['누적 매수량']).astype(int)
+    df['수익률 (%)'] = ((df['가격 (KRW)'] - df['평균 매수 가격 (KRW)']) / df['평균 매수 가격 (KRW)']) * 100
+    
+    # 결과 출력
+    st.write(df)
+    st.write(f"총 투자 금액: {df['누적 투자 금액 (KRW)'].iloc[-1]} KRW")
+    st.write(f"총 매수량: {df['누적 매수량'].iloc[-1]:.6f} 코인")
+    st.write(f"최종 수익률: {df['수익률 (%)'].iloc[-1]:.2f}%")
+    
+    # 성과를 시각화
+    fig = px.bar(df, x='날짜', y='수익률 (%)', title='가상자산 가격 변동 및 투자 수익률')
+    st.plotly_chart(fig)
 
-            fig = go.Figure(data=[go.Candlestick(
-                x=df['timestamp'],
-                open=df['open'],
-                high=df['high'],
-                low=df['low'],
-                close=df['close'],
-                increasing_line_color='blue',
-                decreasing_line_color='red'
-            )])
-            fig.update_layout(
-                title=f"{symbol} 실시간 차트",
-                xaxis_title="시간",
-                yaxis_title="가격 (KRW)",
-                template="plotly_dark"
-            )
-            st.plotly_chart(fig)
+# 프로젝트 소개 페이지
+def show_project_intro():
+    st.write('''
+    **비트알고 프로젝트 소개**
 
-'## BitAlgo'
+    비트알고는 가상화폐 투자자들을 위해 설계된 소규모 프로젝트로, 사용자들이 가상화폐 시장에 쉽게 접근하고, 자동으로 적립식 투자를 할 수 있도록 돕는 자동매매 프로그램입니다.
 
-crypto_data = get_all_crypto_info()
-market_data = get_all_market_info()
+    비트알고는 사용자가 투자에 대한 깊은 지식이 없더라도 안정적이고 지속적인 수익을 추구할 수 있도록 설계되었습니다. 이를 위해 최신 알고리즘과 인공지능 기술을 활용하여 시장의 데이터를 분석하고, 적절한 매수와 매도 시점을 자동으로 결정하여 사용자에게 최적의 투자 경험을 제공합니다.
 
-if isinstance(market_data, list):  # market_data가 리스트인지 확인
-    processed_data = []
-    for market_info in market_data:
-        market_key = market_info['market']
-        # 'KRW-'를 제거한 후 key로 사용
-        clean_market_key = market_key.replace('KRW-', '')
-        if clean_market_key in crypto_data:
-            processed_data.append([
-                f"{market_info['korean_name']} ({market_key})",
-                round(float(crypto_data[clean_market_key]['closing_price']), 2),
-                float(crypto_data[clean_market_key]['fluctate_rate_24H']),
-                float(crypto_data[clean_market_key]['fluctate_24H']),
-                round(float(crypto_data[clean_market_key]['acc_trade_value_24H']), 0)
-            ])
+    비트알고는 소규모 팀이 모여 열정적으로 개발한 프로젝트로, 사용자 중심의 기능과 서비스 개선을 위해 지속적으로 노력하고 있습니다. 가상화폐의 복잡성과 변동성을 줄이고, 누구나 쉽게 투자에 참여할 수 있는 환경을 만들어 나가는 것이 우리의 비전입니다.
 
-market_data_df = pd.DataFrame(processed_data, columns=['가상자산명 (Symbol)', '현재가 (KRW)', '24시간 변동률 (%)', '변동액 (KRW)', '거래금액 (24H, KRW)'])
+    함께 더 나은 투자 세상을 만들어갑시다!
+    ''')
 
-st.dataframe(market_data_df)
-if not len(market_data_df):
-    st.error("데이터를 가져오지 못했습니다.")
+# 가이드 페이지
+def show_guide():
+    st.write('''
+    **초보자를 위한 사용 방법 및 자주 묻는 질문(FAQ)을 제공합니다.**
 
-# 사이드바 설정
-st.sidebar.title('비트알고')
+    **FAQ**
+    1. **비트알고는 어떤 프로그램인가요?**
+        - 비트알고는 적립식 자동매매 프로그램으로, 사용자의 투자 성향에 맞춰 가상화폐를 자동으로 매수/매도합니다.
+    2. **어떻게 시작하나요?**
+        - 계정 생성 후, 투자 성향을 설정하고 원하는 금액을 입금하면 프로그램이 자동으로 매매를 시작합니다.
+    3. **수익률은 보장되나요?**
+        - 수익률은 시장 상황에 따라 달라질 수 있으며, 보장은 어렵습니다.
+    ''')
 
-# 사이드바 메뉴 항목 추가
-def show_content(option):
-    if option == '프로젝트 소개':
-        st.write('''
-        **비트알고 프로젝트 소개**
-        
-        비트알고는 가상화폐 투자자들을 위해 설계된 소규모 프로젝트로, 사용자들이 가상화폐 시장에 쉽게 접근하고, 자동으로 적립식 투자를 할 수 있도록 돕는 자동매매 프로그램입니다.
-        
-        비트알고는 사용자가 투자에 대한 깊은 지식이 없더라도 안정적이고 지속적인 수익을 추구할 수 있도록 설계되었습니다. 이를 위해 최신 알고리즘과 인공지능 기술을 활용하여 시장의 데이터를 분석하고, 적절한 매수와 매도 시점을 자동으로 결정하여 사용자에게 최적의 투자 경험을 제공합니다.
-        
-        비트알고는 소규모 팀이 모여 열정적으로 개발한 프로젝트로, 사용자 중심의 기능과 서비스 개선을 위해 지속적으로 노력하고 있습니다. 가상화폐의 복잡성과 변동성을 줄이고, 누구나 쉽게 투자에 참여할 수 있는 환경을 만들어 나가는 것이 우리의 비전입니다.
-        
-        함께 더 나은 투자 세상을 만들어갑시다!
-        ''')
+# 문의 및 피드백 페이지
+def show_feedback():
+    st.write('문의사항 및 피드백을 제출해 주세요.')
+    feedback = st.text_area("문의 및 피드백 입력", "여기에 입력하세요...")
+    if st.button("제출"):
+        st.success("문의 및 피드백이 성공적으로 제출되었습니다.")
+        # 문의 및 피드백 처리 로직 추가 가능
 
-    elif option == '투자 전략':
-        st.write('사용자의 위험 성향에 따라 다양한 적립식 투자 전략을 제공합니다.')
-        st.write("\n**위험 성향 선택**")
-        risk_level = st.selectbox("위험 성향을 선택하세요:", ["낮음", "중간", "높음"])
-        st.write(f"선택한 위험 성향: {risk_level}")
-        if risk_level == "낮음":
-            st.write("안전한 자산에 분산 투자하는 전략을 추천합니다.")
-        elif risk_level == "중간":
-            st.write("적절한 위험과 수익을 추구하는 자산 분배를 추천합니다.")
-        elif risk_level == "높음":
-            st.write("높은 수익을 위해 높은 위험을 감수하는 전략을 추천합니다.")
+# 실시간 가상자산 시세 확인 페이지
 
-    elif option == '실시간 시세':
-        st.write('가상화폐의 실시간 시세와 각 자산의 차트를 확인할 수 있습니다.')
-        # Bithumb API에서 실시간 데이터 가져오기
-        url = "https://api.bithumb.com/public/ticker/ALL_KRW"
-        response = requests.get(url)
-        if response.status_code == 200:
-            data = response.json()
-            if data['status'] == '0000':
-                crypto_data = data['data']
-                crypto_list = []
-                for key, value in crypto_data.items():
-                    if isinstance(value, dict):
-                        crypto_list.append([
-                            key,  # 가상자산명 (Symbol)
-                            value.get('korean_name', key),  # 한글 이름이 있을 경우 사용
-                            float(value['closing_price']),
-                            float(value['fluctate_rate_24H'])
-                        ])
-                crypto_df = pd.DataFrame(crypto_list, columns=['Symbol', '가상자산명', '현재가 (KRW)', '24시간 변동률 (%)'])
-                selected_asset = st.selectbox("가상자산을 선택하세요:", crypto_df['Symbol'].unique())
-
-                if selected_asset:
-                    show_crypto_candlestick_chart(selected_asset)
-
-    elif option == '성과 분석':
-        st.write('사용자의 투자 성과를 시각화하여 분석합니다.')
-        # 샘플 투자 데이터
-        data = {
-            '날짜': pd.date_range(start='2024-01-01', periods=10, freq='M'),
-            '투자 금액 (KRW)': [1000000, 1200000, 1500000, 1300000, 1600000, 1800000, 2000000, 2200000, 2500000, 2700000],
-            '수익률 (%)': [5, 7, 3, 4, 6, 8, 9, 5, 7, 6]
+def show_live_prices():
+    st.write("**실시간 가상자산 시세**")
+    
+    # 가상자산 데이터 가져오기
+    crypto_info = get_all_crypto_info()
+    
+    if not crypto_info:
+        st.error("가상자산 데이터를 가져올 수 없습니다.")
+        return
+    
+    # 데이터프레임 생성 및 표시
+    prices_data = {
+        '코인': [],
+        '현재가 (KRW)': [],
+        '전일 대비 (%)': []
+    }
+    
+    for key, value in crypto_info.items():
+        if key == 'date':
+            continue
+        prices_data['코인'].append(key)
+        prices_data['현재가 (KRW)'].append(value['closing_price'])
+        prices_data['전일 대비 (%)'].append(value['fluctate_rate_24H'])
+    
+    df_prices = pd.DataFrame(prices_data)
+    st.dataframe(df_prices)
+    
+    # 특정 코인의 시세를 그래프로 표현
+    selected_coin = st.selectbox("시세를 보고 싶은 코인을 선택하세요", df_prices['코인'])
+    coin_data = crypto_info.get(selected_coin)
+    if coin_data:
+        st.write(f"**{selected_coin} 시세 그래프**")
+        historical_data = {
+            '시간': pd.date_range(end=pd.Timestamp.now(), periods=12, freq='H').strftime('%Y-%m-%d %H:%M:%S'),
+            '가격 (KRW)': [float(coin_data['closing_price']) * (1 + (i * 0.005)) for i in range(12)]  # 임의 변동 예시
         }
-        df = pd.DataFrame(data)
-        st.dataframe(df)
-        # 수익률 차트
-        fig = px.bar(df, x='날짜', y='수익률 (%)', title='투자 성과 분석')
+        df_historical = pd.DataFrame(historical_data)
+        fig = px.line(df_historical, x='시간', y='가격 (KRW)', title=f'{selected_coin} 가격 변동')
         st.plotly_chart(fig)
 
-    elif option == '가이드':
-        st.write('초보자를 위한 사용 방법 및 자주 묻는 질문(FAQ)을 제공합니다.')
-        st.write("\n**FAQ**")
-        faq = {
-            "비트알고는 어떤 프로그램인가요?": "비트알고는 적립식 자동매매 프로그램으로, 사용자의 투자 성향에 맞춰 가상화폐를 자동으로 매수/매도합니다.",
-            "어떻게 시작하나요?": "계정 생성 후, 투자 성향을 설정하고 원하는 금액을 입금하면 프로그램이 자동으로 매매를 시작합니다.",
-            "수익률은 보장되나요?": "수익률은 시장 상황에 따라 달라질 수 있으며, 보장은 어렵습니다."
-        }
-        for question, answer in faq.items():
-            st.write(f"**{question}**")
-            st.write(answer)
+# 페이지 라우팅
+page = st.sidebar.radio("메뉴 선택", ["프로젝트 소개", "투자 성과 분석", "실시간 가상자산 시세", "가이드", "문의 및 피드백"])
 
-    elif option == '문의 및 피드백':
-        st.write('문의사항 및 피드백을 제출해 주세요.')
-        st.text_area("문의 및 피드백 입력", "여기에 입력하세요...")
-        if st.button("제출"):
-            st.success("문의 및 피드백이 성공적으로 제출되었습니다.")
+if page == "프로젝트 소개":
+    show_project_intro()
+elif page == "투자 성과 분석":
+    show_investment_performance()
+elif page == "실시간 가상자산 시세":
+    show_live_prices()
+elif page == "가이드":
+    show_guide()
+elif page == "문의 및 피드백":
+    show_feedback()
 
-menu_options = [
-    '프로젝트 소개',
-    '투자 전략',
-    '실시간 시세',
-    '성과 분석',
-    '가이드',
-    '문의 및 피드백'
-]
+# 페이지 하단 푸터 추가
+st.markdown(
+    """
+    <footer style='text-align: center; margin-top: 50px;'>
+        <hr>
+        <p>비트알고 프로젝트 © 2024. All Rights Reserved.</p>
+    </footer>
+    """,
+    unsafe_allow_html=True
+)
 
-# 사이드바에 체크박스 형태로 메뉴 항목 표시
-selected_option = st.sidebar.radio("메뉴 선택", menu_options)
-show_content(selected_option)
+
+
