@@ -146,9 +146,22 @@ def show_investment_performance():
         return
     
     # 매주 1,000원씩 적립식 투자 시뮬레이션
+    historical_url = "https://api.bithumb.com/public/candlestick/BTC_KRW/24h"
+    historical_response = requests.get(historical_url)
+    if historical_response.status_code == 200:
+        historical_data = historical_response.json()
+        if historical_data['status'] == '0000':
+            price_data = [float(entry[2]) for entry in historical_data['data'][-12:]]  # 최근 12개의 일간 종가 데이터 사용
+        else:
+            st.error("역사적 데이터를 가져오지 못했습니다.")
+            return
+    else:
+        st.error("역사적 데이터를 가져오지 못했습니다.")
+        return
+
     investment_data = {
-        '날짜': pd.date_range(end=pd.Timestamp.now(), periods=12, freq='W').strftime('%Y-%m-%d'),  # 최근 3개월 동안의 매주 날짜
-        '가격 (KRW)': [current_price * (1 + (i * 0.01)) for i in range(12)]  # 임의로 가격 변동 예시
+        '날짜': pd.date_range(end=pd.Timestamp.now(), periods=12, freq='W').strftime('%Y-%m-%d'),
+        '가격 (KRW)': price_data
     }
     df = pd.DataFrame(investment_data)
     
@@ -243,20 +256,28 @@ def show_live_prices():
     coin_data = crypto_info.get(selected_coin)
     if coin_data:
         st.write(f"**{selected_coin} 시세 그래프**")
-        historical_data = {
-            '시간': pd.date_range(end=pd.Timestamp.now(), periods=12, freq='H').strftime('%Y-%m-%d %H:%M:%S'),
-            '가격 (KRW)': [float(coin_data['closing_price']) * (1 + (i * 0.005)) for i in range(12)]  # 임의 변동 예시
-        }
-        df_historical = pd.DataFrame(historical_data)
-        fig = px.line(df_historical, x='시간', y='가격 (KRW)', title=f'{selected_coin} 가격 변동')
-        st.plotly_chart(fig)
+        historical_url = f"https://api.bithumb.com/public/candlestick/{selected_coin}_KRW/24h"
+        historical_response = requests.get(historical_url)
+        if historical_response.status_code == 200:
+            historical_data = historical_response.json()
+            if historical_data['status'] == '0000':
+                historical_prices = [float(entry[2]) for entry in historical_data['data'][-12:]]
+                historical_dates = [pd.to_datetime(entry[0], unit='ms').strftime('%Y-%m-%d %H:%M:%S') for entry in historical_data['data'][-12:]]
+                
+                historical_df = pd.DataFrame({'시간': historical_dates, '가격 (KRW)': historical_prices})
+                fig = px.line(historical_df, x='시간', y='가격 (KRW)', title=f'{selected_coin} 가격 변동')
+                st.plotly_chart(fig)
+            else:
+                st.error("역사적 데이터를 가져오지 못했습니다.")
+        else:
+            st.error("역사적 데이터를 가져오지 못했습니다.")
 
 # 페이지 라우팅
-page = st.sidebar.radio("메뉴 선택", ["프로젝트 소개", "투자 성과 분석", "실시간 가상자산 시세", "가이드", "문의 및 피드백"])
+page = st.sidebar.radio("메뉴 선택", ["프로젝트 소개", "실시간 가상자산 시세", "3개월 전부터 투자를 한다면..",  "가이드", "문의 및 피드백"])
 
 if page == "프로젝트 소개":
     show_project_intro()
-elif page == "투자 성과 분석":
+elif page == "3개월 전부터 투자를 한다면..":
     show_investment_performance()
 elif page == "실시간 가상자산 시세":
     show_live_prices()
@@ -275,6 +296,3 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
-
-
