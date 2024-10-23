@@ -64,6 +64,7 @@ def show_investment_performance():
     }
     df = pd.DataFrame(investment_data)
     
+
     # 매주 투자할 금액
     weekly_investment = 1000
     
@@ -112,6 +113,13 @@ def show_guide():
     3. **수익률은 보장되나요?**
         - 수익률은 시장 상황에 따라 달라질 수 있으며, 보장은 어렵습니다.
     ''')
+# 문의 및 피드백 페이지
+def show_feedback():
+    st.write('문의사항 및 피드백을 제출해 주세요.')
+    feedback = st.text_area("문의 및 피드백 입력", "여기에 입력하세요...")
+    if st.button("제출"):
+        st.success("문의 및 피드백이 성공적으로 제출되었습니다.")
+        # 문의 및 피드백 처리 로직 추가 가능
 
 # 실시간 가상자산 시세 확인 페이지
 def show_live_prices():
@@ -180,7 +188,7 @@ elif page == "가이드":
     show_guide()
 elif page == "문의 및 피드백":
     show_feedback()
-
+    
 # 페이지 하단 푸터 추가
 st.markdown(
     """
