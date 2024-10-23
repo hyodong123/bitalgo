@@ -5,114 +5,13 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import plotly.express as px  # 오류 해결을 위한 추가
 
-# Streamlit 스타일을 위해 HTML과 CSS 추가
-st.markdown(
-    """
-    <style>
-    /* 사이드바 배경 및 텍스트 스타일 변경 */
-    .sidebar .sidebar-content {
-        background-color: #32CD99;
-        color: white;
-        padding: 10px;
-    }
-    .sidebar .sidebar-content h2, h3, h4 {
-        color: #ffffff;
-    }
-    
-    /* 페이지 제목 및 헤더 스타일 변경 */
-    h2, h3, h4 {
-        color: #32CD99;
-        font-family: 'Arial', sans-serif;
-        font-weight: bold;
-    }
-    
-    /* 버튼 스타일 변경 */
-    .stButton>button {
-        background-color: #32CD99;
-        color: white;
-        border-radius: 8px;
-        border: none;
-        padding: 10px;
-        font-weight: bold;
-        font-size: 16px;
-        transition: background-color 0.3s ease;
-    }
-    .stButton>button:hover {
-        background-color: #2aa198;
-        color: #ffffff;
-    }
-    
-    /* 테이블 스타일링 */
-    table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-    th, td {
-        padding: 10px;
-        text-align: center;
-        border-bottom: 1px solid #ddd;
-    }
-    th {
-        background-color: #32CD99;
-        color: white;
-        font-weight: bold;
-    }
-    td {
-        color: #333333;
-    }
-    
-    /* 텍스트 영역 및 입력 박스 스타일 */
-    .stTextArea textarea, .stTextInput input {
-        background-color: #f0f8ff;
-        color: #333333;
-        font-size: 14px;
-        border: 2px solid #32CD99;
-        border-radius: 8px;
-        padding: 10px;
-    }
-    
-    /* 선택 박스 스타일 */
-    .stSelectbox>div>div {
-        border: 2px solid #32CD99;
-        border-radius: 8px;
-    }
-
-    /* 사이드바 메뉴 선택 스타일 */
-    .css-1aumxhk {
-        color: #333333;
-        font-weight: bold;
-        border-bottom: 2px solid #32CD99;
-        padding-bottom: 10px;
-    }
-
-    /* 사이드바 버튼 스타일 */
-    .stButton>button {
-        margin-bottom: 10px;
-        width: 100%;
-        background-color: #32CD99;
-        color: white;
-        border: none;
-        padding: 10px;
-        border-radius: 8px;
-        font-size: 16px;
-        font-weight: bold;
-        transition: background-color 0.3s ease;
-    }
-    .stButton>button:hover {
-        background-color: #2aa198;
-    }
-    
-    /* 로고 스타일링 */
-    .logo {
-        display: block;
-        margin: 0 auto;
-        width: 80%;
-        max-width: 150px;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+def load_korean_names():
+    try:
+        df = pd.read_csv('./mnt/data/crypto_korean_names.csv')
+        return dict(zip(df['코인'], df['코인 이름']))
+    except Exception as e:
+        st.error(f"코인 이름 CSV 파일을 로드하는 데 실패했습니다: {e}")
+        return {}
 
 # 가상자산 정보 가져오기 함수
 def get_all_crypto_info():
@@ -214,22 +113,14 @@ def show_guide():
         - 수익률은 시장 상황에 따라 달라질 수 있으며, 보장은 어렵습니다.
     ''')
 
-# 문의 및 피드백 페이지
-def show_feedback():
-    st.write('문의사항 및 피드백을 제출해 주세요.')
-    feedback = st.text_area("문의 및 피드백 입력", "여기에 입력하세요...")
-    if st.button("제출"):
-        st.success("문의 및 피드백이 성공적으로 제출되었습니다.")
-        # 문의 및 피드백 처리 로직 추가 가능
-
 # 실시간 가상자산 시세 확인 페이지
-
 def show_live_prices():
     st.write("**실시간 가상자산 시세**")
     
     # 가상자산 데이터 가져오기
     crypto_info = get_all_crypto_info()
-    
+    korean_names = load_korean_names()  # 코인 이름 데이터 로드
+
     if not crypto_info:
         st.error("가상자산 데이터를 가져올 수 없습니다.")
         return
@@ -237,6 +128,7 @@ def show_live_prices():
     # 데이터프레임 생성 및 표시
     prices_data = {
         '코인': [],
+        '코인 이름': [],
         '현재가 (KRW)': [],
         '전일 대비 (%)': []
     }
@@ -245,6 +137,7 @@ def show_live_prices():
         if key == 'date':
             continue
         prices_data['코인'].append(key)
+        prices_data['코인 이름'].append(korean_names.get(key, key))
         prices_data['현재가 (KRW)'].append(value['closing_price'])
         prices_data['전일 대비 (%)'].append(value['fluctate_rate_24H'])
     
@@ -252,11 +145,12 @@ def show_live_prices():
     st.dataframe(df_prices)
     
     # 특정 코인의 시세를 그래프로 표현
-    selected_coin = st.selectbox("시세를 보고 싶은 코인을 선택하세요", df_prices['코인'])
-    coin_data = crypto_info.get(selected_coin)
+    selected_coin = st.selectbox("시세를 보고 싶은 코인을 선택하세요", df_prices['코인 이름'])
+    coin_data = crypto_info.get(df_prices[df_prices['코인 이름'] == selected_coin]['코인'].values[0])
     if coin_data:
         st.write(f"**{selected_coin} 시세 그래프**")
-        historical_url = f"https://api.bithumb.com/public/candlestick/{selected_coin}_KRW/24h"
+        coin_symbol = df_prices[df_prices['코인 이름'] == selected_coin]['코인'].values[0]
+        historical_url = f"https://api.bithumb.com/public/candlestick/{coin_symbol}_KRW/24h"
         historical_response = requests.get(historical_url)
         if historical_response.status_code == 200:
             historical_data = historical_response.json()
@@ -271,6 +165,7 @@ def show_live_prices():
                 st.error("역사적 데이터를 가져오지 못했습니다.")
         else:
             st.error("역사적 데이터를 가져오지 못했습니다.")
+
 
 # 페이지 라우팅
 page = st.sidebar.radio("메뉴 선택", ["프로젝트 소개", "실시간 가상자산 시세", "3개월 전부터 투자를 한다면..",  "가이드", "문의 및 피드백"])
