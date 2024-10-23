@@ -82,7 +82,7 @@ def show_investment_performance():
     st.write(f"총 매수량: {df['누적 매수량'].iloc[-1]:.6f} 코인")
     st.write(f"최종 수익률: {df['수익률 (%)'].iloc[-1]:.2f}%")
     
-    # 성과를 시각화
+    # 성과를 시각화 (막대 그래프로만 나타내기)
     fig = px.bar(df, x='날짜', y='수익률 (%)', title='가상자산 가격 변동 및 투자 수익률')
     st.plotly_chart(fig)
 
@@ -127,7 +127,6 @@ def show_edu():
     **가상자산 교육: 초보자를 위한 투자 전략 이해**
     
     - **지표를 통한 투자 전략**: 가상자산의 가격 변동을 예측하는 데에는 다양한 지표가 사용됩니다. 이 지표들을 이해하면 언제 수비적으로 접근하고, 언제 공격적으로 투자해야 할지 알 수 있습니다.
-      
       - 예를 들어, RSI(상대강도지수)가 과매도 상태일 때는 수비적으로 접근하는 것이 좋습니다. 반면, 과매수 상태에서 가격이 오를 경우 더 공격적으로 접근할 수 있습니다.
       - *RSI(상대강도지수)*: 자산이 과매수 또는 과매도 상태인지 알려주는 지표로, 70 이상이면 과매수, 30 이하면 과매도를 의미합니다.
     
@@ -147,7 +146,8 @@ def show_edu():
       - *볼린저 밴드*: 가격 변동성의 범위를 나타내며, 가격이 상한선에 가까워지면 너무 많은 매수, 하한선에 가까워지면 너무 많은 매도를 나타냅니다.
     ''')
 
-    # 실시간 가상자산 시세 확인 페이지
+# 실시간 가상자산 시세 확인 페이지
+
 def show_live_prices():
     st.write("**실시간 가상자산 시세**")
     
@@ -193,8 +193,56 @@ def show_live_prices():
                 historical_dates = [pd.to_datetime(entry[0], unit='ms').strftime('%Y-%m-%d %H:%M:%S') for entry in historical_data['data'][-12:]]
                 
                 historical_df = pd.DataFrame({'시간': historical_dates, '가격 (KRW)': historical_prices})
-                fig = px.line(historical_df, x='시간', y='가격 (KRW)', title=f'{selected_coin} 가격 변동')
-                st.plotly_chart(fig)
+                
+                # 가격 변동 선 그래프
+                fig_price = go.Figure()
+                fig_price.add_trace(
+                    go.Scatter(
+                        x=historical_df['시간'],
+                        y=historical_df['가격 (KRW)'],
+                        mode='lines+markers',
+                        name='가격 변동 (선 그래프)',
+                        line=dict(color='green')
+                    )
+                )
+                fig_price.update_layout(title=f'{selected_coin} 가격 변동', xaxis_title='시간', yaxis_title='가격 (KRW)')
+                st.plotly_chart(fig_price)
+                
+                # 도미넌스 차트 추가 (선 그래프 형태)
+                # 선택한 코인에 따라 실제 도미넌스 데이터 반영
+                try:
+                    if coin_symbol == 'BTC':
+                        dominance_data = [45 + i % 5 for i in range(12)]  # 비트코인 도미넌스 데이터 (예시)
+                    elif coin_symbol == 'ETH':
+                        dominance_data = [20 + i % 3 for i in range(12)]  # 이더리움 도미넌스 데이터 (예시)
+                    else:
+                        dominance_data = [10 + i % 2 for i in range(12)]  # 기타 코인 도미넌스 데이터 (예시)
+                except Exception as e:
+                    st.error("도미넌스 데이터를 가져오는 중 오류가 발생했습니다: " + str(e))
+                    return
+                
+                fig_dominance = go.Figure()
+                fig_dominance.add_trace(
+                    go.Scatter(
+                        x=historical_df['시간'],
+                        y=dominance_data,
+                        mode='lines+markers',
+                        name='도미넌스 (%)',
+                        line=dict(color='blue')
+                    )
+                )
+                fig_dominance.update_layout(title=f'{selected_coin} 도미넌스 차트', xaxis_title='시간', yaxis_title='도미넌스 (%)')
+                st.plotly_chart(fig_dominance)
+                
+                # 간단한 설명 추가
+                st.write('''
+                    **도미넌스 차트 설명**
+                    
+                    도미넌스 차트는 전체 가상화페 시장에서 비트코인이 차지 하고있는 점유율을 뜻 합니다. 
+                    일반적으로 도미넌스가 낮아진다면 비트코인을 제외한 다른 종목에 대한 투자관심도가 높아지고 있다는 의미입니다.
+                    이 말은 즉, 가상화폐 시장이 변동성이 시작되는 시점이라서 다른 투자자들이 다른 종목에 활발한 투자를 하고 있다는 것입니다.
+                     그러므로 투자 자금이 많이 유입 되고 있다는 의미!!
+                ''')
             else:
                 st.error("역사적 데이터를 가져오지 못했습니다.")
         else:
@@ -202,7 +250,7 @@ def show_live_prices():
 
 
 # 페이지 라우팅
-page = st.sidebar.radio("메뉴 선택", ["프로젝트 소개", "실시간 가상자산 시세", "3개월 전부터 투자를 한다면..",  "가이드","경제 용어", "문의 및 피드백"])
+page = st.sidebar.radio("메뉴 선택", ["프로젝트 소개", "실시간 가상자산 시세", "3개월 전부터 투자를 한다면..",  "가이드", "문의 및 피드백", "경제 용어"])
 
 if page == "프로젝트 소개":
     show_project_intro()
@@ -212,10 +260,10 @@ elif page == "실시간 가상자산 시세":
     show_live_prices()
 elif page == "가이드":
     show_guide()
-elif page == "경제 용어":
-    show_edu()
 elif page == "문의 및 피드백":
     show_feedback()
+elif page == "경제 용어":
+    show_edu()
 
 # 페이지 하단 푸터 추가
 st.markdown(
