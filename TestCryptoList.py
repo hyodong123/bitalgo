@@ -118,12 +118,66 @@ def show_guide():
         - 비트알고는 웹 기반 플랫폼으로, PC 및 모바일 브라우저에서 모두 사용할 수 있습니다. 언제 어디서든 간편하게 접속하여 가상화폐시장에 접근할 수 있습니다.
         - 
     ''')
+# 문의 및 피드백 페이지
+def show_feedback():
+    st.write('문의사항 및 피드백을 제출해 주세요.')
+    feedback = st.text_area("문의 및 피드백 입력", "여기에 입력하세요...")
+    if st.button("제출"):
+        st.success("문의 및 피드백이 성공적으로 제출되었습니다.")
+        # 문의 및 피드백 처리 로직 추가 가능
 
-# 페이지 선택 박스 추가
-page = st.sidebar.selectbox(
-    "원하는 페이지를 선택하세요",
-    ("프로젝트 소개", "모의 투자", "실시간 가상자산 시세", "가이드", "문의 및 피드백", "알고있으면 좋은 경제 지식")
-)
+# 실시간 가상자산 시세 확인 페이지
+
+def show_live_prices():
+    st.write("**실시간 가상자산 시세**")
+    
+    # 가상자산 데이터 가져오기
+    crypto_info = get_all_crypto_info()
+    
+    if not crypto_info:
+        st.error("가상자산 데이터를 가져올 수 없습니다.")
+        return
+    
+    # 데이터프레임 생성 및 표시
+    prices_data = {
+        '코인': [],
+        '현재가 (KRW)': [],
+        '전일 대비 (%)': []
+    }
+    
+    for key, value in crypto_info.items():
+        if key == 'date':
+            continue
+        prices_data['코인'].append(key)
+        prices_data['현재가 (KRW)'].append(value['closing_price'])
+        prices_data['전일 대비 (%)'].append(value['fluctate_rate_24H'])
+    
+    df_prices = pd.DataFrame(prices_data)
+    st.dataframe(df_prices)
+    
+    # 특정 코인의 시세를 그래프로 표현
+    selected_coin = st.selectbox("시세를 보고 싶은 코인을 선택하세요", df_prices['코인'])
+    coin_data = crypto_info.get(selected_coin)
+    if coin_data:
+        st.write(f"**{selected_coin} 시세 그래프**")
+        historical_url = f"https://api.bithumb.com/public/candlestick/{selected_coin}_KRW/24h"
+        historical_response = requests.get(historical_url)
+        if historical_response.status_code == 200:
+            historical_data = historical_response.json()
+            if historical_data['status'] == '0000':
+                historical_prices = [float(entry[2]) for entry in historical_data['data'][-12:]]
+                historical_dates = [pd.to_datetime(entry[0], unit='ms').strftime('%Y-%m-%d %H:%M:%S') for entry in historical_data['data'][-12:]]
+                
+                historical_df = pd.DataFrame({'시간': historical_dates, '가격 (KRW)': historical_prices})
+                fig = px.line(historical_df, x='시간', y='가격 (KRW)', title=f'{selected_coin} 가격 변동')
+                st.plotly_chart(fig)
+            else:
+                st.error("역사적 데이터를 가져오지 못했습니다.")
+        else:
+            st.error("역사적 데이터를 가져오지 못했습니다.")
+
+# 페이지 라우팅
+page = st.sidebar.radio("메뉴 선택", ["프로젝트 소개", "실시간 가상자산 시세", "모의 투자", "알고있으면 좋은 경제 지식", "가이드", "문의 및 피드백"])
 
 if page == "프로젝트 소개":
     show_project_intro()
