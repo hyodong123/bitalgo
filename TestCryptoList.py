@@ -87,9 +87,8 @@ def show_investment_performance():
 
 # 프로젝트 소개 페이지
 def show_project_intro():
+    st.markdown("<h2 style='font-size:30px;'>**비트알고 프로젝트 소개**</h2>", unsafe_allow_html=True)
     st.write('''
-    <h2 style='font-size:30px;'>**비트알고 프로젝트 소개<h2>**
-
 비트알고는 가상화폐 투자자들을 위한 교육 중심의 플랫폼으로, 사용자들이 가상화폐 시장에 쉽게 접근하고 학습할 수 있도록 돕는 투자 교육 플랫폼입니다.
 
 비트알고는 투자에 대한 깊은 지식이 없는 사용자도 가상화폐 시장의 기초부터 배워나갈 수 있으며, 차트를 분석하거나 어려웠던 경제 용어 등 
