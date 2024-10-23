@@ -3,6 +3,7 @@ import pandas as pd
 import requests
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from streamlit_option_menu import option_menu
 import plotly.express as px  # 오류 해결을 위한 추가
 
 def load_korean_names():
@@ -224,20 +225,28 @@ def show_live_prices():
             st.error("역사적 데이터를 가져오지 못했습니다.")
 
 # 페이지 라우팅
-page = st.sidebar.radio("메뉴 선택", ["프로젝트 소개", "실시간 가상자산 시세", "모의 투자", "알고있으면 좋은 경제 지식", "가이드", "문의 및 피드백"])
+with st.sidebar:
+    selected = option_menu(
+        menu_title="메뉴 선택",  # required
+        options=["프로젝트 소개", "실시간 가상자산 시세", "모의 투자", "알고있으면 좋은 경제 지식", "가이드", "문의 및 피드백"],  # required
+        icons=["house", "graph-up", "wallet", "book", "question-circle", "envelope"],  # optional
+        menu_icon="cast",  # optional
+        default_index=0,  # optional
+    )
 
-if page == "프로젝트 소개":
+# 선택된 메뉴에 따라 페이지 라우팅
+if selected == "프로젝트 소개":
     show_project_intro()
-elif page == "모의 투자":
-    show_investment_performance()
-elif page == "실시간 가상자산 시세":
+elif selected == "실시간 가상자산 시세":
     show_live_prices()
-elif page == "가이드":
-    show_guide()
-elif page == "문의 및 피드백":
-    show_feedback()
-elif page == "알고있으면 좋은 경제 지식":
+elif selected == "모의 투자":
+    show_investment_performance()
+elif selected == "알고있으면 좋은 경제 지식":
     show_edu()
+elif selected == "가이드":
+    show_guide()
+elif selected == "문의 및 피드백":
+    show_feedback()
 
 # 페이지 하단 푸터 추가
 st.markdown(
