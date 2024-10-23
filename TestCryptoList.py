@@ -30,6 +30,9 @@ def get_all_crypto_info():
 
 # 성과 분석: 매주 1,000원 적립식 투자 로직
 def show_investment_performance():
+    # 사용자로부터 투자 금액 입력 받기
+    weekly_investment = st.number_input("주간 투자 금액을 입력하세요 (원):", min_value=1000, step=1000)
+
     # 가상자산 가격 데이터 받아오기
     url = "https://api.bithumb.com/public/ticker/BTC_KRW"
     response = requests.get(url)
@@ -43,8 +46,8 @@ def show_investment_performance():
     else:
         st.error("데이터를 가져오지 못했습니다.")
         return
-    
-    # 매주 1,000원씩 적립식 투자 시뮬레이션
+
+    # 매주 투자 시뮬레이션
     historical_url = "https://api.bithumb.com/public/candlestick/BTC_KRW/24h"
     historical_response = requests.get(historical_url)
     if historical_response.status_code == 200:
@@ -63,11 +66,7 @@ def show_investment_performance():
         '가격 (KRW)': price_data
     }
     df = pd.DataFrame(investment_data)
-    
 
-    # 매주 투자할 금액
-    weekly_investment = 1000
-    
     # 투자 로직: 매주 가격에 맞춰 적립식으로 투자
     df['투자 금액 (KRW)'] = weekly_investment
     df['매수량'] = df['투자 금액 (KRW)'] / df['가격 (KRW)']
@@ -75,14 +74,14 @@ def show_investment_performance():
     df['누적 투자 금액 (KRW)'] = weekly_investment * (df.index + 1)
     df['평균 매수 가격 (KRW)'] = (df['누적 투자 금액 (KRW)'] / df['누적 매수량']).astype(int)
     df['수익률 (%)'] = ((df['가격 (KRW)'] - df['평균 매수 가격 (KRW)']) / df['평균 매수 가격 (KRW)']) * 100
-    
+
     # 결과 출력
     st.write(df)
     st.write(f"총 투자 금액: {df['누적 투자 금액 (KRW)'].iloc[-1]} KRW")
     st.write(f"총 매수량: {df['누적 매수량'].iloc[-1]:.6f} 코인")
     st.write(f"최종 수익률: {df['수익률 (%)'].iloc[-1]:.2f}%")
-    
-    # 성과를 시각화 (막대 그래프로만 나타내기)
+
+    # 성과를 시각화 (막대 그래프로 나타내기)
     fig = px.bar(df, x='날짜', y='수익률 (%)', title='가상자산 가격 변동 및 투자 수익률')
     st.plotly_chart(fig)
 
