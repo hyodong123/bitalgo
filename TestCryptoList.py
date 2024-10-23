@@ -146,7 +146,7 @@ def show_edu():
 
     # 이미지나 추가 시각화 자료를 넣을 수도 있습니다.
     st.image(
-    "https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Blockchain.svg/1200px-Blockchain.svg.png",
+    "https://www.siminsori.com/news/photo/201801/200764_50251_4925.jpg",
     caption="블록체인 구조",
     use_column_width=True
 )
