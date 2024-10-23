@@ -145,7 +145,14 @@ def show_edu():
     st.write(edu_df)
 
     # 이미지나 추가 시각화 자료를 넣을 수도 있습니다.
-    st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Blockchain.svg/1200px-Blockchain.svg.png", caption="블록체인 구조", use_column_width=True)
+    st.image(
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/Blockchain.svg/1200px-Blockchain.svg.png",
+    caption="블록체인 구조",
+    use_column_width=True
+)
+
+# 다른 콘텐츠 추가
+st.write("블록체인의 구조")
 
 # 가이드 페이지
 def show_guide():
