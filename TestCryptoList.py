@@ -249,11 +249,11 @@ def show_live_prices():
 
 
 # 페이지 라우팅
-page = st.sidebar.radio("메뉴 선택", ["프로젝트 소개", "실시간 가상자산 시세", "3개월 전부터 투자를 한다면..",  "가이드", "문의 및 피드백", "경제 용어"])
+page = st.sidebar.radio("메뉴 선택", ["프로젝트 소개", "실시간 가상자산 시세", "알고있으면 좋은 경제 지식", "모의 투자",  "가이드", "문의 및 피드백", ""])
 
 if page == "프로젝트 소개":
     show_project_intro()
-elif page == "3개월 전부터 투자를 한다면..":
+elif page == "모의 투자":
     show_investment_performance()
 elif page == "실시간 가상자산 시세":
     show_live_prices()
@@ -261,7 +261,7 @@ elif page == "가이드":
     show_guide()
 elif page == "문의 및 피드백":
     show_feedback()
-elif page == "경제 용어":
+elif page == "알고있으면 좋은 경제 지식":
     show_edu()
 
 # 페이지 하단 푸터 추가
