@@ -151,9 +151,6 @@ def show_edu():
     use_column_width=True
 )
 
-# 다른 콘텐츠 추가
-st.write("블록체인의 구조")
-
 # 가이드 페이지
 def show_guide():
     st.markdown("<h2 style='font-size:30px;'>초보자를 위한 사용 방법 및 자주 묻는 질문(FAQ)</h2>", unsafe_allow_html=True)
