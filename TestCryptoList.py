@@ -223,25 +223,27 @@ def show_live_prices():
                 fig_price = px.line(historical_df, x='시간', y='가격 (KRW)', title=f'{selected_coin} 가격 변동')
                 st.plotly_chart(fig_price)
 
-                # 도미넌스 그래프 추가
-                dominance_url = "https://api.coingecko.com/api/v3/global"
+                # 도미넌스 그래프 추가 (업데이트된 API 사용)
+                dominance_url = "https://api.bithumb.com/public/ticker/BTC_KRW"
                 dominance_response = requests.get(dominance_url)
                 if dominance_response.status_code == 200:
                     dominance_data = dominance_response.json()
-                    btc_dominance = dominance_data['data']['market_cap_percentage']['btc']
-                    eth_dominance = dominance_data['data']['market_cap_percentage']['eth']
-                    timestamp = pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
-                    
-                    df_dominance = pd.DataFrame({'시간': [timestamp], 'BTC 도미넌스 (%)': [btc_dominance], 'ETH 도미넌스 (%)': [eth_dominance]})
-                    fig_dominance = px.line(df_dominance.melt(id_vars='시간', var_name='코인', value_name='도미넌스 (%)'), 
-                                            x='시간', y='도미넌스 (%)', color='코인', title='비트코인 및 이더리움 도미넌스 추이')
-                    st.plotly_chart(fig_dominance)
+                    if dominance_data['status'] == '0000':
+                        btc_dominance = float(dominance_data['data']['closing_price']) / sum([float(value['closing_price']) for key, value in crypto_info.items() if key != 'date']) * 100
+                        timestamp = pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
+                        
+                        df_dominance = pd.DataFrame({'시간': [timestamp], 'BTC 도미넌스 (%)': [btc_dominance]})
+                        fig_dominance = px.line(df_dominance, x='시간', y='BTC 도미넌스 (%)', title='비트코인 도미넌스 추이')
+                        st.plotly_chart(fig_dominance)
+                    else:
+                        st.error("도미넌스 데이터를 파싱하는 데 실패했습니다.")
                 else:
                     st.error("도미넌스 데이터를 가져오지 못했습니다.")
             else:
                 st.error("역사적 데이터를 가져오지 못했습니다.")
         else:
             st.error("역사적 데이터를 가져오지 못했습니다.")
+
 
 # 페이지 라우팅
 with st.sidebar:
