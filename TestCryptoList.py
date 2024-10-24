@@ -29,14 +29,24 @@ def get_all_crypto_info():
         st.error("데이터를 가져오지 못했습니다.")
     return {}
 
-# 성과 분석: 매주 1,000원 적립식 투자 로직
 def show_investment_performance():
     st.markdown("<h2 style='font-size:30px;'>모의 투자</h2>", unsafe_allow_html=True)
-    # 사용자로부터 투자 금액 입력 받기
-    weekly_investment = st.number_input("주간 투자 금액을 입력하세요 (원):", min_value=1000, step=1000)
+    
+    # 가상자산 데이터 가져오기
+    crypto_info = get_all_crypto_info()
+    korean_names = load_korean_names()
 
-    # 가상자산 가격 데이터 받아오기
-    url = "https://api.bithumb.com/public/ticker/BTC_KRW"
+    if not crypto_info:
+        st.error("가상자산 데이터를 가져올 수 없습니다.")
+        return
+
+    # 사용자로부터 투자 금액 및 코인 선택 입력 받기
+    weekly_investment = st.number_input("주간 투자 금액을 입력하세요 (원):", min_value=1000, step=1000)
+    selected_coin = st.selectbox("투자할 코인을 선택하세요:", list(korean_names.values()))
+
+    # 선택한 코인에 대한 정보 가져오기
+    coin_key = list(korean_names.keys())[list(korean_names.values()).index(selected_coin)]
+    url = f"https://api.bithumb.com/public/ticker/{coin_key}_KRW"
     response = requests.get(url)
     if response.status_code == 200:
         data = response.json()
@@ -50,7 +60,7 @@ def show_investment_performance():
         return
 
     # 매주 투자 시뮬레이션
-    historical_url = "https://api.bithumb.com/public/candlestick/BTC_KRW/24h"
+    historical_url = f"https://api.bithumb.com/public/candlestick/{coin_key}_KRW/24h"
     historical_response = requests.get(historical_url)
     if historical_response.status_code == 200:
         historical_data = historical_response.json()
