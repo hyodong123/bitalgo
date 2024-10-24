@@ -220,12 +220,27 @@ def show_live_prices():
                 historical_dates = [pd.to_datetime(entry[0], unit='ms').strftime('%Y-%m-%d %H:%M:%S') for entry in historical_data['data'][-12:]]
                 
                 historical_df = pd.DataFrame({'시간': historical_dates, '가격 (KRW)': historical_prices})
-                fig = px.line(historical_df, x='시간', y='가격 (KRW)', title=f'{selected_coin} 가격 변동')
-                st.plotly_chart(fig)
+                fig_price = px.line(historical_df, x='시간', y='가격 (KRW)', title=f'{selected_coin} 가격 변동')
+                st.plotly_chart(fig_price)
+
+                # 도미넌스 그래프 추가
+                dominance_url = "https://api.coingecko.com/api/v3/global"
+                dominance_response = requests.get(dominance_url)
+                if dominance_response.status_code == 200:
+                    dominance_data = dominance_response.json()
+                    dominance = dominance_data['data']['market_cap_percentage']['btc']
+                    timestamp = pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
+                    
+                    df_dominance = pd.DataFrame({'시간': [timestamp], '도미넌스 (%)': [dominance]})
+                    fig_dominance = px.line(df_dominance, x='시간', y='도미넌스 (%)', title='비트코인 도미넌스 추이')
+                    st.plotly_chart(fig_dominance)
+                else:
+                    st.error("도미넌스 데이터를 가져오지 못했습니다.")
             else:
                 st.error("역사적 데이터를 가져오지 못했습니다.")
         else:
             st.error("역사적 데이터를 가져오지 못했습니다.")
+
 
 # 페이지 라우팅
 with st.sidebar:
