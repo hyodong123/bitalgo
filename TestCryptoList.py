@@ -536,6 +536,18 @@ def show_card_news():
     else:
         st.write("표시할 뉴스가 없습니다.")
 
+# 페이지 하단 푸터 추가
+def footer():
+    st.markdown(
+        """
+        <footer style='text-align: center; margin-top: 50px;'>
+            <hr>
+            <p>Copyright Team 비트지니어스 - 비트알고 프로젝트 © 2024. All Rights Reserved.</p> 
+        </footer>
+        """,
+        unsafe_allow_html=True
+    )
+
 # 페이지 라우팅
 with st.sidebar:
     selected = option_menu(
@@ -549,26 +561,22 @@ with st.sidebar:
 # 선택된 메뉴에 따라 페이지 라우팅
 if selected == "프로젝트 소개":
     show_project_intro()
+    footer()
 elif selected == "실시간 가상자산 시세":
     show_live_prices()
+    footer()
 elif selected == "모의 투자":
     show_investment_performance()
+    footer()
 elif selected == "카드 뉴스":
     show_card_news()  # 카드 뉴스 페이지 함수 호출
+    footer()
 elif selected == "알고있으면 좋은 경제 지식":
     show_edu()
+    footer()
 elif selected == "가이드":
     show_guide()
+    footer()
 elif selected == "문의 및 피드백":
     show_feedback()
-
-# 페이지 하단 푸터 추가
-    st.markdown(
-    """
-    <footer style='text-align: center; margin-top: 50px;'>
-        <hr>
-        <p>Copyright Team 비트지니어스 - 비트알고 프로젝트 © 2024. All Rights Reserved.</p> 
-    </footer>
-    """,
-    unsafe_allow_html=True
-    )
+    footer()
