@@ -234,25 +234,90 @@ def show_live_prices():
         if historical_response.status_code == 200:
             historical_data = historical_response.json()
             if historical_data['status'] == '0000':
-                historical_prices = [float(entry[2]) for entry in historical_data['data'][-12:]]
-                historical_dates = [pd.to_datetime(entry[0], unit='ms').strftime('%Y-%m-%d %H:%M:%S') for entry in historical_data['data'][-12:]]
+                historical_prices = [float(entry[2]) for entry in historical_data['data']]
+                historical_dates = [pd.to_datetime(entry[0], unit='ms').strftime('%Y-%m-%d %H:%M:%S') for entry in historical_data['data']]
                 
                 historical_df = pd.DataFrame({'시간': historical_dates, '가격 (KRW)': historical_prices})
                 
-                # 가격 변동 선 그래프
-                fig_price = go.Figure()
-                fig_price.add_trace(
-                    go.Scatter(
-                        x=historical_df['시간'],
-                        y=historical_df['가격 (KRW)'],
-                        mode='lines+markers',
-                        name='가격 변동 (선 그래프)',
-                        line=dict(color='green')
-                    )
-                )
-                fig_price.update_layout(title=f'{selected_coin} 가격 변동', xaxis_title='시간', yaxis_title='가격 (KRW)')
-                st.plotly_chart(fig_price)
+                # 가격 변동 캔들스틱 차트
+                ohlc_data = []
+                for entry in historical_data['data'][-24:]:
+                    timestamp = pd.to_datetime(entry[0], unit='ms').strftime('%Y-%m-%d %H:%M:%S')
+                    open_price = float(entry[1])
+                    high_price = float(entry[3])
+                    low_price = float(entry[4])
+                    close_price = float(entry[2])
+                    ohlc_data.append([timestamp, open_price, high_price, low_price, close_price])
                 
+                ohlc_df = pd.DataFrame(ohlc_data, columns=['시간', '시가', '고가', '저가', '종가'])
+                
+                # 캔들스틱 차트 생성
+                fig_candlestick = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.8, 0.2], vertical_spacing=0.1)
+                fig_candlestick.add_trace(go.Candlestick(
+                    x=ohlc_df['시간'],
+                    open=ohlc_df['시가'],
+                    high=ohlc_df['고가'],
+                    low=ohlc_df['저가'],
+                    close=ohlc_df['종가'],
+                    increasing_line_color='green',
+                    decreasing_line_color='red',
+                    name='캔들스틱 차트'
+                ), row=1, col=1)
+                
+                # 거래량 데이터 추가
+                volume_data = [float(entry[5]) for entry in historical_data['data'][-24:]]
+                ohlc_df['거래량'] = volume_data
+                
+                fig_candlestick.add_trace(go.Bar(
+                    x=ohlc_df['시간'],
+                    y=ohlc_df['거래량'],
+                    name='거래량',
+                    marker_color='blue'
+                ), row=2, col=1)
+                
+                # 툴팁 한글로 변경
+                fig_candlestick.update_traces(
+                    hovertext=[f"날짜: {row['시간']}<br>시가: {row['시가']} KRW<br>고가: {row['고가']} KRW<br>저가: {row['저가']} KRW<br>종가: {row['종가']} KRW<br>거래량: {row['거래량']}" for index, row in ohlc_df.iterrows()],
+                    hoverinfo='text',
+                    row=1, col=1
+                )
+                
+                # 차트 옆에 설명 추가
+                fig_candlestick.update_layout(
+                    title=f'{selected_coin} 가격 변동 (캔들스틱 차트)',
+                    xaxis_title='시간',
+                    yaxis_title='가격 (KRW)',
+                    xaxis_rangeslider_visible=False,
+                    annotations=[
+                        dict(
+                            x=1.05,
+                            y=0.5,
+                            xref='paper',
+                            yref='paper',
+                            showarrow=False,
+                            align='left',
+                            font=dict(size=12)
+                        )
+                    ]
+                )
+                
+                st.plotly_chart(fig_candlestick)
+
+                  # 캔들스틱 차트 설명 추가
+                st.write('''
+                    **캔들스틱 차트란?**
+                    
+                    캔들스틱 차트는 특정 시간 동안의 시가, 고가, 저가, 종가를 시각화한 것입니다. 
+                    - **시가(Open)**: 해당 시간대의 첫 거래 가격
+                    - **고가(High)**: 해당 시간대의 최고 거래 가격
+                    - **저가(Low)**: 해당 시간대의 최저 거래 가격
+                    - **종가(Close)**: 해당 시간대의 마지막 거래 가격
+                    
+                    초록색 막대는 종가가 시가보다 높을 때 나타나며, 이는 해당 시간대에 가격이 상승했음을 의미합니다. 
+                         
+                    반면 빨간색 막대는 종가가 시가보다 낮을 때 나타나며, 이는 가격이 하락했음을 의미합니다.
+                ''')
+
                 # 도미넌스 차트 추가 (선 그래프 형태)
                 # 선택한 코인에 따라 실제 도미넌스 데이터 반영
                 try:
@@ -281,7 +346,7 @@ def show_live_prices():
                 
                 # 간단한 설명 추가
                 st.write('''
-                    **도미넌스 차트 설명**
+                    **도미넌스 차트란?**
                     
                     도미넌스는 해당 자산이 전체 시장에서 차지하는 비율을 의미합니다. 일반적으로 도미넌스가 높을수록 해당 자산의 시장 내 영향력이 크다는 것을 나타냅니다.
                 ''')
@@ -363,7 +428,7 @@ def get_combined_news():
     return combined_articles
 
 # 가장 많이 등장하는 단어를 추출하는 함수
-def get_top_keywords(articles, top_n=5):
+def get_top_keywords(articles, top_n=10):
     all_text = " ".join([article.get('title', '') for article in articles])
     words = re.findall(r'\w+', all_text.lower())
     stop_words = set(['the', 'and', 'of', 'in', 'to', 'a', 'is', 'for', 'on', 'with', 'that', 'by', 'from'])
@@ -373,17 +438,30 @@ def get_top_keywords(articles, top_n=5):
 
 # 뉴스 카드 UI 생성 함수 (리스트 형식 및 이미지 포함)
 def create_news_list_with_images(articles):
-    # 핫토픽 (가장 많이 쓰인 단어) 출력
+    # 실시간 핫토픽 출력 - 실시간 검색어처럼 변경
     top_keywords = get_top_keywords(articles)
-    st.markdown("<h2 style='font-size:24px; color:#FF6347; text-align:center; margin-bottom:20px;'>핫토픽</h2>", unsafe_allow_html=True)
-    hot_topics_html = "<div style='text-align:center; margin-bottom:20px;'>"
-    for word, count in top_keywords:
-        hot_topics_html += f"<div style='display:inline-block; margin: 10px; padding: 10px; background-color: #f0f0f0; border-radius: 10px;'>"
-        hot_topics_html += f"<span style='font-weight:bold; font-size:18px; color:#333;'>{word}</span>"
-        hot_topics_html += f"<div style='font-size:14px; color:#666;'>({count}건)</div>"
-        hot_topics_html += "</div>"
-    hot_topics_html += "</div>"
-    st.markdown(hot_topics_html, unsafe_allow_html=True)
+    st.markdown("<h2 style='font-size:24px; color:#FF6347; text-align:center; margin-bottom:20px;'>실시간 핫토픽</h2>", unsafe_allow_html=True)
+    col1, col2 = st.columns(2)
+
+    hot_topics_html_1 = "<div style='background-color: #f9f9f9; padding: 20px; border-radius: 10px;'><ul style='list-style:none; padding:0; font-size:18px; color:#333;'>"
+    hot_topics_html_2 = "<div style='background-color: #f9f9f9; padding: 20px; border-radius: 10px;'><ul style='list-style:none; padding:0; font-size:18px; color:#333;'>"
+
+
+    for i, (word, count) in enumerate(top_keywords):
+        arrow_icon = "<span style='color:green;'>&uarr;</span>" if i % 2 == 0 else "<span style='color:red;'>&darr;</span>"
+        style = "font-weight:bold;" if i < 3 else ""
+        if i < 5:
+            hot_topics_html_1 += f"<li style='margin: 10px 0; {style}'><span style='color:#007ACC;'>{i+1}. {word}</span> {arrow_icon} - {count}건</li>"
+        else:
+            hot_topics_html_2 += f"<li style='margin: 10px 0; {style}'><span style='color:#007ACC;'>{i+1}. {word}</span> {arrow_icon} - {count}건</li>"
+
+    hot_topics_html_1 += "</ul>"
+    hot_topics_html_2 += "</ul>"
+
+    with col1:
+        st.markdown(hot_topics_html_1, unsafe_allow_html=True)
+    with col2:
+        st.markdown(hot_topics_html_2, unsafe_allow_html=True)
 
     # 주요 뉴스 리스트 출력
     st.markdown("<h2 style='font-size:24px; color:#007ACC; text-align:center; margin-bottom:20px;'>주요 뉴스</h2>", unsafe_allow_html=True)
