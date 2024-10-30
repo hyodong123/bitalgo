@@ -1,4 +1,5 @@
 import streamlit as st
+import numpy as np
 import pandas as pd
 import requests
 import plotly.graph_objects as go
@@ -10,18 +11,24 @@ import streamlit.components.v1 as components
 from collections import Counter
 import re
 
-def load_korean_names():
-    try:
-        df = pd.read_csv('./mnt/data/crypto_korean_names.csv')
-        return dict(zip(df['코인'], df['코인 이름']))
-    except Exception as e:
-        st.error(f"코인 이름 CSV 파일을 로드하는 데 실패했습니다: {e}")
-        return {}
+########################### 프로젝트 소개 페이지 ##############################
+def show_project_intro():
+    st.markdown("<h2 style='font-size:30px;'>비트알고 프로젝트 소개</h2>", unsafe_allow_html=True)
+    st.write('''
+비트알고는 가상화폐 투자자들을 위한 교육 중심의 플랫폼으로, 사용자들이 가상화폐 시장에 쉽게 접근하고 학습할 수 있도록 돕는 투자 교육 플랫폼입니다.
 
+비트알고는 투자에 대한 깊은 지식이 없는 사용자도 가상화폐 시장의 기초부터 배워나갈 수 있으며, 차트를 분석하거나 어려웠던 경제 용어 등 
+많은 것들을 학습할 수 있습니다.
+이러한 과정에서 투자의 원리를 배우고 성장할 수 있도록 설계되었습니다.
+비트알고는 사용자 중심의 기능과 교육 서비스를 지속적으로 개선하며, 
+누구나 쉽게 가상화폐 투자를 이해하고 참여할 수 있는 환경을 만들어가는 것을 목표로 하고 있습니다. 
+    ''')
+
+########################### 실시간 가상자산 시세 ##############################
 # 가상자산 정보 가져오기 함수
 def get_all_crypto_info():
     url = "https://api.bithumb.com/public/ticker/ALL_KRW"
-    response = requests.get(url)
+    response = requests.get(url, timeout=10)
     if response.status_code == 200:
         try:
             data = response.json()
@@ -33,6 +40,266 @@ def get_all_crypto_info():
         st.error("데이터를 가져오지 못했습니다.")
     return {}
 
+# 코인 이름 로드 함수
+def load_korean_names():
+    try:
+        df = pd.read_csv('./mnt/data/crypto_korean_names.csv')
+        return dict(zip(df['코인'], df['코인 이름']))
+    except Exception as e:
+        st.error(f"코인 이름 CSV 파일을 로드하는 데 실패했습니다: {e}")
+        return {}
+
+# 실시간 가상자산 시세 확인 페이지
+def show_live_prices():
+    st.write("**실시간 가상자산 시세**")
+    
+    # 가상자산 데이터 가져오기
+    crypto_info = get_all_crypto_info()
+    korean_names = load_korean_names()  # 코인 이름 데이터 로드
+
+    if not crypto_info:
+        st.error("가상자산 데이터를 가져올 수 없습니다.")
+        return
+    
+    # 데이터프레임 생성 및 표시
+    prices_data = {
+        '코인': [],
+        '코인 이름': [],
+        '현재가 (KRW)': [],
+        '전일 대비 (%)': []
+    }
+    
+    for key, value in crypto_info.items():
+        if key == 'date':
+            continue
+        prices_data['코인'].append(key)
+        prices_data['코인 이름'].append(korean_names.get(key, key))
+        prices_data['현재가 (KRW)'].append(value['closing_price'])
+        prices_data['전일 대비 (%)'].append(value['fluctate_rate_24H'])
+    
+    df_prices = pd.DataFrame(prices_data)
+    st.dataframe(df_prices)
+    
+    # 특정 코인의 시세를 그래프로 표현
+    selected_coin = st.selectbox("시세를 보고 싶은 코인을 선택하세요", df_prices['코인 이름'])
+    coin_data = crypto_info.get(df_prices[df_prices['코인 이름'] == selected_coin]['코인'].values[0])
+    if coin_data:
+        st.write(f"**{selected_coin} 시세 그래프**")
+        coin_symbol = df_prices[df_prices['코인 이름'] == selected_coin]['코인'].values[0]
+        historical_url = f"https://api.bithumb.com/public/candlestick/{coin_symbol}_KRW/24h"
+        historical_response = requests.get(historical_url)
+        if historical_response.status_code == 200:
+            historical_data = historical_response.json()
+            if historical_data['status'] == '0000':
+                historical_prices = [float(entry[2]) for entry in historical_data['data']]
+                historical_dates = [pd.to_datetime(entry[0], unit='ms').strftime('%Y-%m-%d %H:%M:%S') for entry in historical_data['data']]
+                historical_volumes = [float(entry[5]) for entry in historical_data['data']]
+                
+                historical_df = pd.DataFrame({'시간': historical_dates, '가격 (KRW)': historical_prices, '거래량': historical_volumes})
+                
+                # 이동평균(Moving Average) 계산 및 추가
+                historical_df['이동평균 (5일)'] = historical_df['가격 (KRW)'].rolling(window=5).mean()
+                historical_df['이동평균 (10일)'] = historical_df['가격 (KRW)'].rolling(window=10).mean()
+                
+                # RSI (Relative Strength Index) 계산
+                delta = historical_df['가격 (KRW)'].diff()
+                gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+                loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+                rs = gain / loss
+                historical_df['RSI (14)'] = 100 - (100 / (1 + rs))
+                
+                # MACD (Moving Average Convergence Divergence) 계산
+                short_ema = historical_df['가격 (KRW)'].ewm(span=12, adjust=False).mean()
+                long_ema = historical_df['가격 (KRW)'].ewm(span=26, adjust=False).mean()
+                historical_df['MACD'] = short_ema - long_ema
+                historical_df['Signal Line'] = historical_df['MACD'].ewm(span=9, adjust=False).mean()
+                
+                # 볼린저 밴드 (Bollinger Bands) 계산
+                historical_df['볼린저 중간선'] = historical_df['가격 (KRW)'].rolling(window=20).mean()
+                historical_df['볼린저 상단'] = historical_df['볼린저 중간선'] + (historical_df['가격 (KRW)'].rolling(window=20).std() * 2)
+                historical_df['볼린저 하단'] = historical_df['볼린저 중간선'] - (historical_df['가격 (KRW)'].rolling(window=20).std() * 2)
+                
+                # CCI (Commodity Channel Index) 계산
+                tp = (historical_df['가격 (KRW)'] + historical_df['가격 (KRW)'] + historical_df['가격 (KRW)']) / 3
+                ma = tp.rolling(window=20).mean()
+                md = tp.rolling(window=20).apply(lambda x: np.fabs(x - x.mean()).mean(), raw=True)
+                historical_df['CCI'] = (tp - ma) / (0.015 * md)
+                
+                # 슬라이더 바 기능 추가 (기간 설정)
+                start_date, end_date = st.slider(
+                    "기간을 선택하세요",
+                    min_value=pd.to_datetime(historical_df['시간']).min().to_pydatetime(),
+                    max_value=pd.to_datetime(historical_df['시간']).max().to_pydatetime(),
+                    value=(pd.to_datetime(historical_df['시간']).min().to_pydatetime(), pd.to_datetime(historical_df['시간']).max().to_pydatetime())
+                )
+                
+                # 선택된 기간으로 데이터 필터링
+                mask = (
+                    (pd.to_datetime(historical_df['시간']) >= start_date) &
+                    (pd.to_datetime(historical_df['시간']) <= end_date)
+                )
+                filtered_df = historical_df.loc[mask]
+                
+                # 가격 변동 및 이동평균 차트
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(
+                    x=filtered_df['시간'],
+                    y=filtered_df['가격 (KRW)'],
+                    mode='lines',
+                    name='가격 (KRW)'
+                ))
+                
+                # 선택된 추가 기능에 따라 차트에 추가
+                options = st.multiselect(
+                    "추가할 기술적 지표를 선택하세요", ['이동평균 (5일)', '이동평균 (10일)', 'MACD', '볼린저 밴드', 'CCI']
+                )
+                
+                if '이동평균 (5일)' in options:
+                    fig.add_trace(go.Scatter(
+                        x=filtered_df['시간'],
+                        y=filtered_df['이동평균 (5일)'],
+                        mode='lines',
+                        name='이동평균 (5일)',
+                        line=dict(dash='dot')
+                    ))
+                if '이동평균 (10일)' in options:
+                    fig.add_trace(go.Scatter(
+                        x=filtered_df['시간'],
+                        y=filtered_df['이동평균 (10일)'],
+                        mode='lines',
+                        name='이동평균 (10일)',
+                        line=dict(dash='dash')
+                    ))
+                
+                # MACD 차트를 별도로 표시
+                if 'MACD' in options:
+                    st.write(f"**{selected_coin} MACD 지표**")
+                    fig_macd = go.Figure()
+                    fig_macd.add_trace(go.Scatter(
+                        x=filtered_df['시간'],
+                        y=filtered_df['MACD'],
+                        mode='lines',
+                        name='MACD',
+                        line=dict(color='purple')
+                    ))
+                    fig_macd.add_trace(go.Scatter(
+                        x=filtered_df['시간'],
+                        y=filtered_df['Signal Line'],
+                        mode='lines',
+                        name='Signal Line',
+                        line=dict(color='blue', dash='dot')
+                    ))
+                    fig_macd.update_layout(title=f'{selected_coin} MACD', xaxis_title='시간', yaxis_title='값')
+                    st.plotly_chart(fig_macd)
+                
+                # CCI 차트를 별도로 표시
+                if 'CCI' in options:
+                    st.write(f"**{selected_coin} CCI 지표**")
+                    fig_cci = go.Figure()
+                    fig_cci.add_trace(go.Scatter(
+                        x=filtered_df['시간'],
+                        y=filtered_df['CCI'],
+                        mode='lines',
+                        name='CCI',
+                        line=dict(color='brown')
+                    ))
+                    fig_cci.update_layout(title=f'{selected_coin} CCI', xaxis_title='시간', yaxis_title='값')
+                    st.plotly_chart(fig_cci)
+                
+                # 볼린저 밴드 차트를 추가
+                if '볼린저 밴드' in options:
+                    fig.add_trace(go.Scatter(
+                        x=filtered_df['시간'],
+                        y=filtered_df['볼린저 상단'],
+                        mode='lines',
+                        name='볼린저 상단',
+                        line=dict(color='green', dash='dot')
+                    ))
+                    fig.add_trace(go.Scatter(
+                        x=filtered_df['시간'],
+                        y=filtered_df['볼린저 하단'],
+                        mode='lines',
+                        name='볼린저 하단',
+                        line=dict(color='red', dash='dot')
+                    ))
+                
+                fig.update_layout(title=f'{selected_coin} 가격 및 기술적 지표', xaxis_title='시간', yaxis_title='가격 (KRW)')
+                st.plotly_chart(fig)
+                
+                # RSI 차트 별도 시각화
+                if 'RSI (14)' in options:
+                    st.write(f"**{selected_coin} RSI (14) 지표**")
+                    fig_rsi = go.Figure()
+                    fig_rsi.add_trace(go.Scatter(
+                        x=filtered_df['시간'],
+                        y=filtered_df['RSI (14)'],
+                        mode='lines',
+                        name='RSI (14)',
+                        line=dict(color='orange')
+                    ))
+                    fig_rsi.update_layout(title=f'{selected_coin} RSI (14)', xaxis_title='시간', yaxis_title='RSI')
+                    st.plotly_chart(fig_rsi)
+                
+                # 거래량 차트 추가
+                st.write(f"**{selected_coin} 거래량**")
+                fig_volume = go.Figure()
+                fig_volume.add_trace(go.Bar(
+                    x=filtered_df['시간'],
+                    y=filtered_df['거래량'],
+                    name='거래량',
+                    marker_color='blue'
+                ))
+                fig_volume.update_layout(title=f'{selected_coin} 거래량', xaxis_title='시간', yaxis_title='거래량')
+                st.plotly_chart(fig_volume)
+                
+                # 간단한 설명 추가
+                if '이동평균 (5일)' in options or '이동평균 (10일)' in options:
+                    st.write('''
+                        **이동평균(Moving Average)이란?**
+                        
+                        이동평균은 일정 기간 동안의 평균 가격을 의미하며, 가격 변동의 방향성을 확인하는 데 사용됩니다. 
+                        - **단기 이동평균 (5일)**: 최근 5일 동안의 평균 가격을 나타내며, 단기적인 추세를 파악하는 데 유용합니다.
+                        - **장기 이동평균 (10일)**: 최근 10일 동안의 평균 가격을 나타내며, 보다 긴 추세를 확인하는 데 사용됩니다.
+                    ''')
+                
+                if 'RSI (14)' in options:
+                    st.write('''
+                        **RSI (Relative Strength Index)란?**
+                        
+                        RSI는 자산의 과매수 또는 과매도 상태를 나타내는 기술적 지표입니다. 
+                        - **RSI > 70**: 자산이 과매수 상태에 있으며 가격 조정 가능성이 높음을 의미합니다.
+                        - **RSI < 30**: 자산이 과매도 상태에 있으며 반등 가능성이 있음을 의미합니다.
+                    ''')
+                
+                if 'MACD' in options:
+                    st.write('''
+                        **MACD (Moving Average Convergence Divergence)란?**
+                        
+                        MACD는 단기 이동평균과 장기 이동평균의 차이를 이용해 가격 추세의 강도와 방향을 나타내는 지표입니다. Signal Line과의 교차를 통해 매수/매도 신호를 판단합니다.
+                    ''')
+                
+                if '볼린저 밴드' in options:
+                    st.write('''
+                        **볼린저 밴드 (Bollinger Bands)란?**
+                        
+                        볼린저 밴드는 이동평균선을 중심으로 표준편차를 이용해 가격 변동성을 시각화한 지표입니다. 상단 밴드와 하단 밴드 사이의 간격을 통해 변동성을 확인할 수 있습니다.
+                    ''')
+                
+                if 'CCI' in options:
+                    st.write('''
+                        **CCI (Commodity Channel Index)란?**
+                        
+                        CCI는 자산 가격의 변동성을 측정하여 과매수 및 과매도 상태를 파악하는 데 사용되는 지표입니다. 
+                        - **CCI > 100**: 자산이 과매수 상태에 있으며 조정 가능성이 있음을 의미합니다.
+                        - **CCI < -100**: 자산이 과매도 상태에 있으며 반등 가능성이 있음을 의미합니다.
+                    ''')
+            else:
+                st.error("역사적 데이터를 가져오지 못했습니다.")
+        else:
+            st.error("역사적 데이터를 가져오지 못했습니다.")
+
+
+#################################################모의투자##############################################
 def show_investment_performance():
     st.markdown("<h2 style='font-size:30px;'>모의 투자</h2>", unsafe_allow_html=True)
     
@@ -101,259 +368,7 @@ def show_investment_performance():
     fig = px.bar(df, x='날짜', y='수익률 (%)', title='가상자산 가격 변동 및 투자 수익률')
     st.plotly_chart(fig)
 
-# 프로젝트 소개 페이지
-def show_project_intro():
-    st.markdown("<h2 style='font-size:30px;'>비트알고 프로젝트 소개</h2>", unsafe_allow_html=True)
-    st.write('''
-비트알고는 가상화폐 투자자들을 위한 교육 중심의 플랫폼으로, 사용자들이 가상화폐 시장에 쉽게 접근하고 학습할 수 있도록 돕는 투자 교육 플랫폼입니다.
-
-비트알고는 투자에 대한 깊은 지식이 없는 사용자도 가상화폐 시장의 기초부터 배워나갈 수 있으며, 차트를 분석하거나 어려웠던 경제 용어 등 
-많은 것들을 학습할 수 있습니다.
-이러한 과정에서 투자의 원리를 배우고 성장할 수 있도록 설계되었습니다.
-비트알고는 사용자 중심의 기능과 교육 서비스를 지속적으로 개선하며, 
-누구나 쉽게 가상화폐 투자를 이해하고 참여할 수 있는 환경을 만들어가는 것을 목표로 하고 있습니다. 
-    ''')
-# 경제 지식을 제공하는 페이지 함수
-def show_edu():
-    st.markdown("<h2 style='font-size:30px;'>알고 있으면 좋은 경제 지식</h2>", unsafe_allow_html=True)
-    
-    st.write('''
-    **1. 가상화폐란 무엇인가요?**
-    가상화폐(cryptocurrency)는 온라인 상에서 사용되는 디지털 화폐로, 블록체인 기술을 기반으로 합니다. 대표적으로 비트코인과 이더리움이 있으며, 
-    기존 화폐와 달리 중앙 기관이 발행하지 않고, 분산 원장을 통해 거래가 이루어집니다.
-
-    **2. 인플레이션과 디플레이션**
-    - **인플레이션**은 물가가 상승하여 화폐의 가치가 하락하는 현상을 말합니다. 예를 들어, 같은 돈으로 살 수 있는 물건의 양이 줄어드는 것이죠.
-    - **디플레이션**은 그 반대로 물가가 하락하여 화폐의 가치가 상승하는 현상입니다. 이 경우, 돈의 가치가 높아지지만 경제 성장이 둔화될 수 있습니다.
-
-    **3. 블록체인(Blockchain)이란?**
-    블록체인은 데이터를 블록 단위로 저장하며, 여러 블록들이 체인처럼 연결된 구조를 가지고 있습니다. 이를 통해 분산된 네트워크 내에서 
-    투명하고 안전하게 데이터를 저장하고, 위변조를 방지할 수 있습니다. 가상화폐는 이 블록체인 기술을 바탕으로 만들어졌습니다.
-
-    **4. 리스크 관리**
-    가상화폐 투자나 주식 투자에서는 리스크 관리가 매우 중요합니다. 손실을 최소화하고, 예상하지 못한 시장 변동에 대비하는 것이 필요합니다. 
-    대표적인 리스크 관리 방법으로는 자산 분산 투자, 손절매 전략 등이 있습니다.
-
-    **5. 도미넌스 (Dominance)**
-    도미넌스는 특정 가상화폐가 시장에서 차지하는 비중을 의미합니다. 예를 들어, 비트코인의 도미넌스가 높다는 것은 
-    전체 가상화폐 시장에서 비트코인의 비중이 크다는 뜻입니다. 도미넌스는 시장 흐름을 파악하는 중요한 지표 중 하나입니다.
-
-    **6. 가상화폐와 규제**
-    각국 정부는 가상화폐에 대해 다양한 규제를 시행하고 있습니다. 일부 국가는 가상화폐를 합법적으로 인정하고 규제를 통해 시장을 보호하려고 하지만, 
-    다른 국가는 가상화폐의 불법 활동과 관련된 우려로 강력한 제재를 가하고 있습니다. 가상화폐 투자 시, 해당 국가의 법적 규제를 고려하는 것이 중요합니다.
-    ''')
-
-    # 추가적인 자료를 표 형식으로 제공할 수도 있습니다.
-    edu_data = {
-        "개념": ["가상화폐", "블록체인", "인플레이션", "디플레이션", "리스크 관리"],
-        "설명": [
-            "디지털 화폐, 분산 원장 기술을 사용하여 중앙 기관 없이 거래",
-            "데이터를 블록 단위로 저장하여 투명하고 안전하게 관리",
-            "화폐 가치 하락, 물가 상승",
-            "화폐 가치 상승, 물가 하락",
-            "투자 손실 최소화, 자산 분산 및 손절매 전략"
-        ]
-    }
-    
-    edu_df = pd.DataFrame(edu_data)
-    st.write(edu_df)
-
-    # 이미지나 추가 시각화 자료를 넣을 수도 있습니다.
-    st.image(
-    "https://www.siminsori.com/news/photo/201801/200764_50251_4925.jpg",
-    caption="블록체인 구조",
-    use_column_width=True
-)
-
-# 가이드 페이지
-def show_guide():
-    st.markdown("<h2 style='font-size:30px;'>초보자를 위한 사용 방법 및 자주 묻는 질문(FAQ)</h2>", unsafe_allow_html=True)
-    st.write('''
-    **FAQ**
-    1. **비트알고는 어떤 플랫폼인가요?**
-        - 비트알고 투자 보조 플랫폼으로 사용자가 가상화폐에 관해 배울 수 있는 학습환경을 제공합니다.
-    2. **어떤 정보가 제공되나요?**
-        - 실시간 가상화폐 시세 및 도미넌스 차트를 제공합니다.
-        - 또한 사용자가 정보를 찾아보기 보단 한분에 원하는 정보를 볼 수 있도록 제공 합니다.
-    3. **초보자도 쉽게 이용할 수 있나요?**
-        - 예, 비트알고는 가상화폐 시장에 익숙하지 않은 초보자도 쉽게 사용할 수 있도록 다양한 정보를 제공합니다.
-    4. **교육 자료는 어떤 내용으로 구성되어 있나요?**
-        - 기본적인 가상화폐 투자 개념부터 차트 분석, 경제 지표 해석, 리스크 관리 방법까지 다양한 교육 자료를 제공합니다. 
-          또한, 실시간 가상화폐 뉴스와 시장 분석 정보를 통해 최신 동향을 학습할 수 있습니다.
-    5. **어떤 디바이스에서 사용할 수 있나요?**
-        - 비트알고는 웹 기반 플랫폼으로, PC 및 모바일 브라우저에서 모두 사용할 수 있습니다. 언제 어디서든 간편하게 접속하여 가상화폐시장에 접근할 수 있습니다. 
-    ''')
-# 문의 및 피드백 페이지
-def show_feedback():
-    st.write('문의사항 및 피드백을 제출해 주세요.')
-    feedback = st.text_area("문의 및 피드백 입력", "여기에 입력하세요...")
-    if st.button("제출"):
-        st.success("문의 및 피드백이 성공적으로 제출되었습니다.")
-        # 문의 및 피드백 처리 로직 추가 가능
-
-# 실시간 가상자산 시세 확인 페이지
-
-def show_live_prices():
-    st.write("**실시간 가상자산 시세**")
-    
-    # 가상자산 데이터 가져오기
-    crypto_info = get_all_crypto_info()
-    korean_names = load_korean_names()  # 코인 이름 데이터 로드
-
-    if not crypto_info:
-        st.error("가상자산 데이터를 가져올 수 없습니다.")
-        return
-    
-    # 데이터프레임 생성 및 표시
-    prices_data = {
-        '코인': [],
-        '코인 이름': [],
-        '현재가 (KRW)': [],
-        '전일 대비 (%)': []
-    }
-    
-    for key, value in crypto_info.items():
-        if key == 'date':
-            continue
-        prices_data['코인'].append(key)
-        prices_data['코인 이름'].append(korean_names.get(key, key))
-        prices_data['현재가 (KRW)'].append(value['closing_price'])
-        prices_data['전일 대비 (%)'].append(value['fluctate_rate_24H'])
-    
-    df_prices = pd.DataFrame(prices_data)
-    st.dataframe(df_prices)
-    
-    # 특정 코인의 시세를 그래프로 표현
-    selected_coin = st.selectbox("시세를 보고 싶은 코인을 선택하세요", df_prices['코인 이름'])
-    coin_data = crypto_info.get(df_prices[df_prices['코인 이름'] == selected_coin]['코인'].values[0])
-    if coin_data:
-        st.write(f"**{selected_coin} 시세 그래프**")
-        coin_symbol = df_prices[df_prices['코인 이름'] == selected_coin]['코인'].values[0]
-        historical_url = f"https://api.bithumb.com/public/candlestick/{coin_symbol}_KRW/24h"
-        historical_response = requests.get(historical_url)
-        if historical_response.status_code == 200:
-            historical_data = historical_response.json()
-            if historical_data['status'] == '0000':
-                historical_prices = [float(entry[2]) for entry in historical_data['data']]
-                historical_dates = [pd.to_datetime(entry[0], unit='ms').strftime('%Y-%m-%d %H:%M:%S') for entry in historical_data['data']]
-                
-                historical_df = pd.DataFrame({'시간': historical_dates, '가격 (KRW)': historical_prices})
-                
-                # 가격 변동 캔들스틱 차트
-                ohlc_data = []
-                for entry in historical_data['data'][-24:]:
-                    timestamp = pd.to_datetime(entry[0], unit='ms').strftime('%Y-%m-%d %H:%M:%S')
-                    open_price = float(entry[1])
-                    high_price = float(entry[3])
-                    low_price = float(entry[4])
-                    close_price = float(entry[2])
-                    ohlc_data.append([timestamp, open_price, high_price, low_price, close_price])
-                
-                ohlc_df = pd.DataFrame(ohlc_data, columns=['시간', '시가', '고가', '저가', '종가'])
-                
-                # 캔들스틱 차트 생성
-                fig_candlestick = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.8, 0.2], vertical_spacing=0.1)
-                fig_candlestick.add_trace(go.Candlestick(
-                    x=ohlc_df['시간'],
-                    open=ohlc_df['시가'],
-                    high=ohlc_df['고가'],
-                    low=ohlc_df['저가'],
-                    close=ohlc_df['종가'],
-                    increasing_line_color='green',
-                    decreasing_line_color='red',
-                    name='캔들스틱 차트'
-                ), row=1, col=1)
-                
-                # 거래량 데이터 추가
-                volume_data = [float(entry[5]) for entry in historical_data['data'][-24:]]
-                ohlc_df['거래량'] = volume_data
-                
-                fig_candlestick.add_trace(go.Bar(
-                    x=ohlc_df['시간'],
-                    y=ohlc_df['거래량'],
-                    name='거래량',
-                    marker_color='blue'
-                ), row=2, col=1)
-                
-                # 툴팁 한글로 변경
-                fig_candlestick.update_traces(
-                    hovertext=[f"날짜: {row['시간']}<br>시가: {row['시가']} KRW<br>고가: {row['고가']} KRW<br>저가: {row['저가']} KRW<br>종가: {row['종가']} KRW<br>거래량: {row['거래량']}" for index, row in ohlc_df.iterrows()],
-                    hoverinfo='text',
-                    row=1, col=1
-                )
-                
-                # 차트 옆에 설명 추가
-                fig_candlestick.update_layout(
-                    title=f'{selected_coin} 가격 변동 (캔들스틱 차트)',
-                    xaxis_title='시간',
-                    yaxis_title='가격 (KRW)',
-                    xaxis_rangeslider_visible=False,
-                    annotations=[
-                        dict(
-                            x=1.05,
-                            y=0.5,
-                            xref='paper',
-                            yref='paper',
-                            showarrow=False,
-                            align='left',
-                            font=dict(size=12)
-                        )
-                    ]
-                )
-                
-                st.plotly_chart(fig_candlestick)
-
-                  # 캔들스틱 차트 설명 추가
-                st.write('''
-                    **캔들스틱 차트란?**
-                    
-                    캔들스틱 차트는 특정 시간 동안의 시가, 고가, 저가, 종가를 시각화한 것입니다. 
-                    - **시가(Open)**: 해당 시간대의 첫 거래 가격
-                    - **고가(High)**: 해당 시간대의 최고 거래 가격
-                    - **저가(Low)**: 해당 시간대의 최저 거래 가격
-                    - **종가(Close)**: 해당 시간대의 마지막 거래 가격
-                    
-                    초록색 막대는 종가가 시가보다 높을 때 나타나며, 이는 해당 시간대에 가격이 상승했음을 의미합니다. 
-                         
-                    반면 빨간색 막대는 종가가 시가보다 낮을 때 나타나며, 이는 가격이 하락했음을 의미합니다.
-                ''')
-
-                # 도미넌스 차트 추가 (선 그래프 형태)
-                # 선택한 코인에 따라 실제 도미넌스 데이터 반영
-                try:
-                    if coin_symbol == 'BTC':
-                        dominance_data = [45 + i % 5 for i in range(12)]  # 비트코인 도미넌스 데이터 (예시)
-                    elif coin_symbol == 'ETH':
-                        dominance_data = [20 + i % 3 for i in range(12)]  # 이더리움 도미넌스 데이터 (예시)
-                    else:
-                        dominance_data = [10 + i % 2 for i in range(12)]  # 기타 코인 도미넌스 데이터 (예시)
-                except Exception as e:
-                    st.error("도미넌스 데이터를 가져오는 중 오류가 발생했습니다: " + str(e))
-                    return
-                
-                fig_dominance = go.Figure()
-                fig_dominance.add_trace(
-                    go.Scatter(
-                        x=historical_df['시간'],
-                        y=dominance_data,
-                        mode='lines+markers',
-                        name='도미넌스 (%)',
-                        line=dict(color='blue')
-                    )
-                )
-                fig_dominance.update_layout(title=f'{selected_coin} 도미넌스 차트', xaxis_title='시간', yaxis_title='도미넌스 (%)')
-                st.plotly_chart(fig_dominance)
-                
-                # 간단한 설명 추가
-                st.write('''
-                    **도미넌스 차트란?**
-                    
-                    도미넌스는 해당 자산이 전체 시장에서 차지하는 비율을 의미합니다. 일반적으로 도미넌스가 높을수록 해당 자산의 시장 내 영향력이 크다는 것을 나타냅니다.
-                ''')
-            else:
-                st.error("역사적 데이터를 가져오지 못했습니다.")
-        else:
-            st.error("역사적 데이터를 가져오지 못했습니다.")
+########################### 카드 뉴스 ##############################
 
 # API 키 설정
 NEWS_API_KEY = 'ae924ae2406048d39816221dd4632006'
@@ -535,6 +550,88 @@ def show_card_news():
         create_news_list_with_images(articles)
     else:
         st.write("표시할 뉴스가 없습니다.")
+
+########################### 알고 있으면 좋은 경제 지식 ##############################
+
+# 경제 지식을 제공하는 페이지 함수
+def show_edu():
+    st.markdown("<h2 style='font-size:30px;'>알고 있으면 좋은 경제 지식</h2>", unsafe_allow_html=True)
+    
+    st.write('''
+    **1. 가상화폐란 무엇인가요?**
+    가상화폐(cryptocurrency)는 온라인 상에서 사용되는 디지털 화폐로, 블록체인 기술을 기반으로 합니다. 대표적으로 비트코인과 이더리움이 있으며, 
+    기존 화폐와 달리 중앙 기관이 발행하지 않고, 분산 원장을 통해 거래가 이루어집니다.
+
+    **2. 인플레이션과 디플레이션**
+    - **인플레이션**은 물가가 상승하여 화폐의 가치가 하락하는 현상을 말합니다. 예를 들어, 같은 돈으로 살 수 있는 물건의 양이 줄어드는 것이죠.
+    - **디플레이션**은 그 반대로 물가가 하락하여 화폐의 가치가 상승하는 현상입니다. 이 경우, 돈의 가치가 높아지지만 경제 성장이 둔화될 수 있습니다.
+
+    **3. 블록체인(Blockchain)이란?**
+    블록체인은 데이터를 블록 단위로 저장하며, 여러 블록들이 체인처럼 연결된 구조를 가지고 있습니다. 이를 통해 분산된 네트워크 내에서 
+    투명하고 안전하게 데이터를 저장하고, 위변조를 방지할 수 있습니다. 가상화폐는 이 블록체인 기술을 바탕으로 만들어졌습니다.
+
+    **4. 리스크 관리**
+    가상화폐 투자나 주식 투자에서는 리스크 관리가 매우 중요합니다. 손실을 최소화하고, 예상하지 못한 시장 변동에 대비하는 것이 필요합니다. 
+    대표적인 리스크 관리 방법으로는 자산 분산 투자, 손절매 전략 등이 있습니다.
+
+    **5. 도미넌스 (Dominance)**
+    도미넌스는 특정 가상화폐가 시장에서 차지하는 비중을 의미합니다. 예를 들어, 비트코인의 도미넌스가 높다는 것은 
+    전체 가상화폐 시장에서 비트코인의 비중이 크다는 뜻입니다. 도미넌스는 시장 흐름을 파악하는 중요한 지표 중 하나입니다.
+
+    **6. 가상화폐와 규제**
+    각국 정부는 가상화폐에 대해 다양한 규제를 시행하고 있습니다. 일부 국가는 가상화폐를 합법적으로 인정하고 규제를 통해 시장을 보호하려고 하지만, 
+    다른 국가는 가상화폐의 불법 활동과 관련된 우려로 강력한 제재를 가하고 있습니다. 가상화폐 투자 시, 해당 국가의 법적 규제를 고려하는 것이 중요합니다.
+    ''')
+
+    # 추가적인 자료를 표 형식으로 제공할 수도 있습니다.
+    edu_data = {
+        "개념": ["가상화폐", "블록체인", "인플레이션", "디플레이션", "리스크 관리"],
+        "설명": [
+            "디지털 화폐, 분산 원장 기술을 사용하여 중앙 기관 없이 거래",
+            "데이터를 블록 단위로 저장하여 투명하고 안전하게 관리",
+            "화폐 가치 하락, 물가 상승",
+            "화폐 가치 상승, 물가 하락",
+            "투자 손실 최소화, 자산 분산 및 손절매 전략"
+        ]
+    }
+    
+    edu_df = pd.DataFrame(edu_data)
+    st.write(edu_df)
+
+    # 이미지나 추가 시각화 자료를 넣을 수도 있습니다.
+    st.image(
+    "https://www.siminsori.com/news/photo/201801/200764_50251_4925.jpg",
+    caption="블록체인 구조",
+    use_column_width=True
+)
+
+# 가이드 페이지
+def show_guide():
+    st.markdown("<h2 style='font-size:30px;'>초보자를 위한 사용 방법 및 자주 묻는 질문(FAQ)</h2>", unsafe_allow_html=True)
+    st.write('''
+    **FAQ**
+    1. **비트알고는 어떤 플랫폼인가요?**
+        - 비트알고 투자 보조 플랫폼으로 사용자가 가상화폐에 관해 배울 수 있는 학습환경을 제공합니다.
+    2. **어떤 정보가 제공되나요?**
+        - 실시간 가상화폐 시세 및 도미넌스 차트를 제공합니다.
+        - 또한 사용자가 정보를 찾아보기 보단 한분에 원하는 정보를 볼 수 있도록 제공 합니다.
+    3. **초보자도 쉽게 이용할 수 있나요?**
+        - 예, 비트알고는 가상화폐 시장에 익숙하지 않은 초보자도 쉽게 사용할 수 있도록 다양한 정보를 제공합니다.
+    4. **교육 자료는 어떤 내용으로 구성되어 있나요?**
+        - 기본적인 가상화폐 투자 개념부터 차트 분석, 경제 지표 해석, 리스크 관리 방법까지 다양한 교육 자료를 제공합니다. 
+          또한, 실시간 가상화폐 뉴스와 시장 분석 정보를 통해 최신 동향을 학습할 수 있습니다.
+    5. **어떤 디바이스에서 사용할 수 있나요?**
+        - 비트알고는 웹 기반 플랫폼으로, PC 및 모바일 브라우저에서 모두 사용할 수 있습니다. 언제 어디서든 간편하게 접속하여 가상화폐시장에 접근할 수 있습니다. 
+    ''')
+# 문의 및 피드백 페이지
+def show_feedback():
+    st.write('문의사항 및 피드백을 제출해 주세요.')
+    feedback = st.text_area("문의 및 피드백 입력", "여기에 입력하세요...")
+    if st.button("제출"):
+        st.success("문의 및 피드백이 성공적으로 제출되었습니다.")
+        # 문의 및 피드백 처리 로직 추가 가능
+
+
 
 # 페이지 하단 푸터 추가
 def footer():
