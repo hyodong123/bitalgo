@@ -402,9 +402,6 @@ def show_investment_performance():
 # API 키 설정
 NEWS_API_KEY = 'ae924ae2406048d39816221dd4632006'
 
-# googletrans 번역기 설정
-translator = Translator()
-
 # NewsAPI에서 뉴스 데이터를 가져오는 함수
 def get_crypto_news():
     keywords = ["cryptocurrency", "bitcoin", "ethereum", "blockchain"]
@@ -430,47 +427,6 @@ def get_crypto_news():
 
     return unique_articles
 
-# GDELT API에서 뉴스 데이터를 가져오는 함수
-def get_gdelt_crypto_news():
-    gdelt_url = "https://api.gdeltproject.org/api/v2/doc/doc?query=cryptocurrency&mode=artlist&format=json&maxrecords=100"
-    response = requests.get(gdelt_url)
-
-    if response.status_code == 200:
-        try:
-            news_data = response.json()
-            articles = news_data.get("articles", [])
-            return articles  # 기사 목록 반환
-        except ValueError:
-            st.error("GDELT 뉴스 데이터의 JSON 파싱에 실패했습니다.")
-            return []
-    else:
-        st.error(f"GDELT 뉴스 데이터를 가져오는 데 실패했습니다. 상태 코드: {response.status_code}")
-        return []
-
-# NewsAPI와 GDELT 뉴스 데이터를 통합하는 함수
-def get_combined_news():
-    articles = get_crypto_news()  # NewsAPI 뉴스
-    gdelt_articles = get_gdelt_crypto_news()  # GDELT 뉴스
-
-    combined_articles = []
-    seen_titles = set()
-
-    # NewsAPI 기사 추가 (중복 체크)
-    for article in articles:
-        title = article.get('title')
-        if title not in seen_titles:
-            seen_titles.add(title)
-            combined_articles.append(article)
-
-    # GDELT 뉴스 기사 추가 (중복 체크)
-    for article in gdelt_articles:
-        title = article.get('title')
-        if title not in seen_titles:
-            seen_titles.add(title)
-            combined_articles.append(article)
-
-    return combined_articles
-
 # 가장 많이 등장하는 단어를 추출하는 함수
 def get_top_keywords(articles, top_n=10):
     all_text = " ".join([article.get('title', '') for article in articles])
@@ -480,105 +436,38 @@ def get_top_keywords(articles, top_n=10):
     word_counts = Counter(filtered_words)
     return word_counts.most_common(top_n)
 
-# 뉴스 카드 UI 생성 함수 (리스트 형식 및 이미지 포함)
-def create_news_list_with_images(articles):
-    # 실시간 핫토픽 출력 - 실시간 검색어처럼 변경
-    top_keywords = get_top_keywords(articles)
-    st.markdown("<h2 style='font-size:24px; color:#FF6347; text-align:center; margin-bottom:20px;'>실시간 핫토픽</h2>", unsafe_allow_html=True)
-    col1, col2 = st.columns(2)
+# Streamlit 앱 설정
+st.set_page_config(page_title="카드 뉴스", layout="wide")
+st.title("카드 뉴스")
 
-    hot_topics_html_1 = "<div style='background-color: #f9f9f9; padding: 20px; border-radius: 10px;'><ul style='list-style:none; padding:0; font-size:18px; color:#333;'>"
-    hot_topics_html_2 = "<div style='background-color: #f9f9f9; padding: 20px; border-radius: 10px;'><ul style='list-style:none; padding:0; font-size:18px; color:#333;'>"
+# API로부터 뉴스 데이터 가져오기
+news_data = get_crypto_news()
 
+# 뉴스 카드 UI 생성
+if news_data:
+    for idx, news in enumerate(news_data):
+        # 카드 색상 조정 (홀수/짝수 배경색 다르게)
+        card_bg_color = "#e6f7ff" if idx % 2 == 0 else "#ffffff"
 
-    for i, (word, count) in enumerate(top_keywords):
-        arrow_icon = "<span style='color:green;'>&uarr;</span>" if i % 2 == 0 else "<span style='color:red;'>&darr;</span>"
-        style = "font-weight:bold;" if i < 3 else ""
-        if i < 5:
-            hot_topics_html_1 += f"<li style='margin: 10px 0; {style}'><span style='color:#007ACC;'>{i+1}. {word}</span> {arrow_icon} - {count}건</li>"
-        else:
-            hot_topics_html_2 += f"<li style='margin: 10px 0; {style}'><span style='color:#007ACC;'>{i+1}. {word}</span> {arrow_icon} - {count}건</li>"
-
-    hot_topics_html_1 += "</ul>"
-    hot_topics_html_2 += "</ul>"
-
-    with col1:
-        st.markdown(hot_topics_html_1, unsafe_allow_html=True)
-    with col2:
-        st.markdown(hot_topics_html_2, unsafe_allow_html=True)
-
-    # 주요 뉴스 리스트 출력
-    st.markdown("<h2 style='font-size:24px; color:#007ACC; text-align:center; margin-bottom:20px;'>주요 뉴스</h2>", unsafe_allow_html=True)
-    top_articles = sorted(articles, key=lambda x: x.get('source', {}).get('name', ''), reverse=True)[:10]
-    for i, article in enumerate(top_articles):
-        title = article.get('title') if 'title' in article else article.get('name')
-        url = article.get('url')
-        image_url = article.get('urlToImage') if 'urlToImage' in article else article.get('image', {}).get('thumbnail', {}).get('contentUrl')
-
-        st.markdown(f"<div style='display: flex; align-items: center; padding: 10px; border: 1px solid #ddd; border-radius: 10px; margin-bottom: 15px;'>"
-                    f"<div style='flex: 1; margin-right: 15px;'>"
-                    f"<img src='{image_url}' style='width: 100%; height: auto; border-radius: 10px;' />"
-                    f"</div>"
-                    f"<div style='flex: 2;'>"
-                    f"<h4 style='color: #333;'>{i+1}. {title}</h4>"
-                    f"<a href='{url}' target='_blank'>"
-                    f"<button style='background-color:#4CAF50; color:white; padding:10px; border:none; cursor:pointer; border-radius: 5px;'>"
-                    f"원본 기사 보러가기"
-                    f"</button>"
-                    f"</a>"
-                    f"</div>"
-                    f"</div>", unsafe_allow_html=True)
-
-    # 관련 뉴스 이미지 출력
-    st.markdown("<h2 style='font-size:24px; color:#007ACC; text-align:center; margin-top: 40px;'>관련 뉴스</h2>", unsafe_allow_html=True)
-    col1, col2 = st.columns(2)
-    if len(articles) > 10:
-        with col1:
-            image_url = articles[10].get('urlToImage') if 'urlToImage' in articles[10] else articles[10].get('image', {}).get('thumbnail', {}).get('contentUrl')
-            title = articles[10].get('title') if 'title' in articles[10] else articles[10].get('name')
-            url = articles[10].get('url')
-            if image_url:
-                image_html = f"""
-                <a href="{url}" target="_blank">
-                    <div style="position: relative;">
-                        <img src="{image_url}" style="width:100%; height:auto; border-radius: 10px;" />
-                        <div style="position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0, 0, 0, 0.5); color: #fff; padding: 5px; text-align: center; border-bottom-left-radius: 10px; border-bottom-right-radius: 10px;">
-                            {title}
-                        </div>
+        # 카드 레이아웃 생성
+        st.markdown(f"""
+            <div style="background-color: {card_bg_color}; padding: 20px; border-radius: 15px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); margin-bottom: 20px; display: flex; flex-wrap: wrap; overflow: hidden;">
+                <div style="flex: 1; margin-right: 20px;">
+                    <img src="{news.get('urlToImage', 'https://example.com/default_image.jpg')}" alt="News Image" style="width: 100%; height: auto; border-radius: 10px;">
+                </div>
+                <div style="flex: 2;">
+                    <h2 style="font-size: 1.5em; color: #007ACC; margin-bottom: 10px;">{news['title']}</h2>
+                    <p style="font-size: 1em; color: #333; margin-bottom: 15px;">{news.get('description', '내용 없음')}</p>
+                    <div style="text-align: right;">
+                        <a href="{news['url']}" target="_blank">
+                            <button style="background-color: #4CAF50; color: white; padding: 10px; border: none; cursor: pointer; border-radius: 5px; font-size: 1em;">원본 기사 보러가기</button>
+                        </a>
                     </div>
-                </a>
-                """
-                st.markdown(image_html, unsafe_allow_html=True)
-
-        if len(articles) > 11:
-            with col2:
-                image_url = articles[11].get('urlToImage') if 'urlToImage' in articles[11] else articles[11].get('image', {}).get('thumbnail', {}).get('contentUrl')
-                title = articles[11].get('title') if 'title' in articles[11] else articles[11].get('name')
-                url = articles[11].get('url')
-                if image_url:
-                    image_html = f"""
-                    <a href="{url}" target="_blank">
-                        <div style="position: relative;">
-                            <img src="{image_url}" style="width:100%; height:auto; border-radius: 10px;" />
-                            <div style="position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0, 0, 0, 0.5); color: #fff; padding: 5px; text-align: center; border-bottom-left-radius: 10px; border-bottom-right-radius: 10px;">
-                                {title}
-                            </div>
-                        </div>
-                    </a>
-                    """
-                    st.markdown(image_html, unsafe_allow_html=True)
-
-# 카드 뉴스 페이지 함수
-def show_card_news():
-    st.markdown("<h2 style='font-size:30px; color:#007ACC; text-align:center;'>카드 뉴스</h2>", unsafe_allow_html=True)
-    
-    # API로부터 뉴스 데이터 가져오기
-    articles = get_combined_news()
-
-    if articles:
-        create_news_list_with_images(articles)
-    else:
-        st.write("표시할 뉴스가 없습니다.")
+                </div>
+            </div>
+        ", unsafe_allow_html=True)
+else:
+    st.write("표시할 뉴스가 없습니다.")
 
 ########################### 알고 있으면 좋은 경제 지식 ##############################
 
