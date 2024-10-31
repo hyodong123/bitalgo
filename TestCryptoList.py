@@ -12,7 +12,13 @@ from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import re
 import urllib.request
+import urllib.parse
+from bs4 import BeautifulSoup
 from PIL import Image
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+from bs4 import BeautifulSoup  # BeautifulSoup 모듈 정의 추가
+from googlesearch import search  # Google 검색을 위한 추가
 
 ########################### 비트알고 프로젝트 소개 ##############################
 
@@ -628,6 +634,64 @@ def show_edu():
     use_column_width=True
 )
 
+#########################################경제 용어 사전 (네이버 api)#####################################
+
+# 네이버 API 키 설정
+NAVER_CLIENT_ID = 'BwZoRgXSJQ3l55bVrIKk'
+NAVER_CLIENT_SECRET = 'd_sagtQMyV'
+
+def show_glossary():
+    st.markdown("""
+        <div style='text-align: center;'>
+            <h2 style='font-size: 36px; font-weight: bold; color: #4CAF50;'>경제 용어 사전</h2>
+            <p style='font-size: 18px;'>원하는 용어를 검색해보세요:</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    search_term = st.text_input("용어 입력", placeholder="예: 비트코인, 인플레이션 등")
+    
+    if search_term:
+        try:
+            # 네이버 검색 API를 사용하여 검색 결과 가져오기
+            url = "https://openapi.naver.com/v1/search/encyc.json"
+            headers = {
+                "X-Naver-Client-Id": NAVER_CLIENT_ID,
+                "X-Naver-Client-Secret": NAVER_CLIENT_SECRET
+            }
+            params = {"query": search_term, "display": 5}
+            response = requests.get(url, headers=headers, params=params, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            
+            if data['items']:
+                descriptions = []
+                for item in data['items']:
+                    title = item['title'].replace('<b>', '').replace('</b>', '')
+                    description = item['description'].replace('<b>', '').replace('</b>', '')
+                    link = item['link']
+                    descriptions.append(f"""
+                        <div style='border: 1px solid #ddd; border-radius: 15px; padding: 20px; margin-bottom: 20px; box-shadow: 0 6px 12px 0 rgba(0, 0, 0, 0.15);'>
+                            <h3 style='font-size: 26px; color: #333; margin-bottom: 10px;'>{title}</h3>
+                            <p style='font-size: 18px; color: #555; line-height: 1.6;'>{description}</p>
+                            <div style='text-align: center; margin-top: 20px;'>
+                                <button style='background-color: #4CAF50; color: white; border: none; padding: 12px 25px; text-align: center; text-decoration: none; display: inline-block; font-size: 18px; border-radius: 8px; cursor: pointer;' onclick="window.open('{link}', '_blank')">자세히 보기</button>
+                            </div>
+                        </div>
+                    """)
+                
+                full_description = '\n'.join(descriptions)
+                st.markdown(full_description, unsafe_allow_html=True)
+            else:
+                st.warning(f"'{search_term}'에 대한 정보를 찾을 수 없습니다.")
+        except requests.exceptions.HTTPError as http_err:
+            st.error(f"HTTP 오류 발생: {http_err}")
+        except requests.exceptions.ConnectionError as conn_err:
+            st.error(f"연결 오류 발생: {conn_err}")
+        except requests.exceptions.Timeout as timeout_err:
+            st.error(f"타임아웃 오류 발생: {timeout_err}")
+        except requests.exceptions.RequestException as req_err:
+            st.error(f"요청 오류 발생: {req_err}")
+
 # 가이드 페이지
 def show_guide():
     st.markdown("<h2 style='font-size:30px;'>초보자를 위한 사용 방법 및 자주 묻는 질문(FAQ)</h2>", unsafe_allow_html=True)
@@ -672,7 +736,7 @@ def footer():
 with st.sidebar:
     selected = option_menu(
         menu_title="메뉴 선택",  # required
-        options=["프로젝트 소개", "실시간 가상자산 시세", "모의 투자", "카드 뉴스", "알고있으면 좋은 경제 지식", "가이드", "문의 및 피드백"],  # required
+        options=["프로젝트 소개", "실시간 가상자산 시세", "모의 투자", "카드 뉴스", "알고있으면 좋은 경제 지식", "경제용어사전", "가이드", "문의 및 피드백"],  # required
         icons=["house", "graph-up", "wallet", "newspaper", "book", "question-circle", "envelope"],  # optional
         menu_icon="cast",  # optional
         default_index=0,  # optional
@@ -693,6 +757,9 @@ elif selected == "카드 뉴스":
     footer()
 elif selected == "알고있으면 좋은 경제 지식":
     show_edu()
+    footer()
+elif selected == "경제용어사전":
+    show_glossary()
     footer()
 elif selected == "가이드":
     show_guide()
