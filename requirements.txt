@@ -6,5 +6,3 @@ plotly
 googletrans
 streamlit-option-menu
 collections
-wordcloud
-matplotlib
