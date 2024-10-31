@@ -554,12 +554,12 @@ def show_feedback():
 # 페이지 하단 푸터 추가
 def footer():
     st.markdown(
-        '''
+        """
         <footer style="text-align: center; margin-top: 50px;">
             <hr>
             <p>&copy; 2024 Team 비트지니어스 - 비트알고 프로젝트. All Rights Reserved.</p>
         </footer>
-        ''',
+        """,
         unsafe_allow_html=True
     )
 
