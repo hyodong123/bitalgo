@@ -1,8 +1,10 @@
 streamlit
+numpy
 pandas
 requests
 plotly
-streamlit-option-menu
 googletrans
+streamlit-option-menu
+collections
 wordcloud
-konlpy
+matplotlib
