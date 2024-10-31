@@ -12,7 +12,6 @@ from collections import Counter
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import re
-import urllib.request
 
 ########################### 비트알고 프로젝트 소개 ##############################
 # 비트알고 프로젝트 소개
@@ -28,30 +27,14 @@ def show_project_intro():
     # 워드 클라우드 생성 및 표시 (프로젝트 주요 키워드)
     st.write("**프로젝트 주요 키워드 워드 클라우드**")
     try:
-        # 웹에서 한글 폰트 다운로드
-        font_url = "https://github.com/google/fonts/raw/main/ofl/nanumgothic/NanumGothic-Regular.ttf"
-        font_path = "./NanumGothic-Regular.ttf"
-        urllib.request.urlretrieve(font_url, font_path)
-
-        # 키워드 추출 및 워드클라우드 생성
         keywords = '비트알고 실시간 가상자산 시세 기술적 분석 이동평균 MACD 볼린저밴드 CCI 투자'
-        keyword_list = keywords.split()
-        keyword_counts = Counter(keyword_list)
-        keyword_text = ' '.join(keyword_list)
-
-        wordcloud = WordCloud(font_path=font_path, width=800, height=400, background_color='white').generate_from_frequencies(keyword_counts)
-        
+        wordcloud = WordCloud(width=800, height=400, background_color='white').generate(keywords)
         plt.figure(figsize=(10, 5))
         plt.imshow(wordcloud, interpolation='bilinear')
         plt.axis('off')
         st.pyplot(plt)
     except ModuleNotFoundError:
         st.error("WordCloud 모듈을 찾을 수 없습니다. 'pip install wordcloud' 명령어로 설치하세요.")
-    except FileNotFoundError:
-        st.error("한글 폰트를 찾을 수 없습니다. 폰트 경로를 확인하세요.")
-    except Exception as e:
-        st.error(f"오류가 발생했습니다: {e}")
-        
 ########################### 실시간 가상자산 시세 ##############################
 # 가상자산 정보 가져오기 함수
 def get_all_crypto_info():
