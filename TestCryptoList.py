@@ -11,8 +11,6 @@ from collections import Counter
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import re
-import openai
-import json
 import urllib.request
 from PIL import Image
 
