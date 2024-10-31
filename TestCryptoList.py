@@ -13,7 +13,6 @@ from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import re
 import urllib.request
-from konlpy.tag import Okt
 
 ########################### 비트알고 프로젝트 소개 ##############################
 # 비트알고 프로젝트 소개
@@ -34,13 +33,13 @@ def show_project_intro():
         font_path = "./NanumGothic-Regular.ttf"
         urllib.request.urlretrieve(font_url, font_path)
 
-        # 형태소 분석기 사용하여 키워드 추출
-        okt = Okt()
+        # 키워드 추출 및 워드클라우드 생성
         keywords = '비트알고 실시간 가상자산 시세 기술적 분석 이동평균 MACD 볼린저밴드 CCI 투자'
-        nouns = okt.nouns(keywords)
-        keyword_text = ' '.join(nouns)
+        keyword_list = keywords.split()
+        keyword_counts = Counter(keyword_list)
+        keyword_text = ' '.join(keyword_list)
 
-        wordcloud = WordCloud(font_path=font_path, width=800, height=400, background_color='white').generate(keyword_text)
+        wordcloud = WordCloud(font_path=font_path, width=800, height=400, background_color='white').generate_from_frequencies(keyword_counts)
         
         plt.figure(figsize=(10, 5))
         plt.imshow(wordcloud, interpolation='bilinear')
