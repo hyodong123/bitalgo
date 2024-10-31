@@ -9,6 +9,8 @@ import plotly.express as px  # 오류 해결을 위한 추가
 from googletrans import Translator
 import streamlit.components.v1 as components
 from collections import Counter
+from wordcloud import WordCloud
+import matplotlib.pyplot as plt
 import re
 
 ########################### 프로젝트 소개 페이지 ##############################
@@ -24,6 +26,14 @@ def show_project_intro():
 누구나 쉽게 가상화폐 투자를 이해하고 참여할 수 있는 환경을 만들어가는 것을 목표로 하고 있습니다. 
     ''')
 
+# 워드 클라우드 생성 및 표시 (프로젝트 주요 키워드)
+st.write("**프로젝트 주요 키워드 워드 클라우드**")
+keywords = '비트알고 실시간 가상자산 시세 기술적 분석 이동평균 MACD 볼린저밴드 CCI 투자'
+wordcloud = WordCloud(width=800, height=400, background_color='white').generate(keywords)
+plt.figure(figsize=(10, 5))
+plt.imshow(wordcloud, interpolation='bilinear')
+plt.axis('off')
+st.pyplot(plt)
 ########################### 실시간 가상자산 시세 ##############################
 # 가상자산 정보 가져오기 함수
 def get_all_crypto_info():
