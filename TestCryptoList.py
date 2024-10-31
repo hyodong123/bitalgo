@@ -35,7 +35,10 @@ def show_project_intro():
         urllib.request.urlretrieve(font_url, font_path)
 
         # 키워드 추출 및 워드클라우드 생성
-        keywords = '비트알고 실시간 가상자산 시세 기술적 분석 이동평균 MACD 볼린저밴드 CCI 투자'
+        keywords = '비트알고 실시간 가상자산 시세 기술적 분석 이동평균 MACD 볼린저밴드 CCI 투자 암호화폐 거래소 트레이딩 스토캐스틱 RSI 알트코인 비트코인 
+                    이더리움 리플 기술적지표 추세분석 거래량 패턴분석 포트폴리오 관리 위험관리 차트분석 cryptocurrency blockchain real-time trading
+                    moving average Bollinger Bands MACD CCI investment crypto exchange stochastic RSI altcoin Bitcoin Ethereum Ripple technical 
+                    analysis trend analysis volume analysis pattern analysis portfolio management risk management chart analysis market data visualization'
         keyword_list = keywords.split()
         keyword_counts = Counter(keyword_list)
 
