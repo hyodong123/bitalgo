@@ -555,9 +555,9 @@ def show_feedback():
 def footer():
     st.markdown(
         """
-        <footer style='text-align: center; margin-top: 50px;'>
+        <footer style="text-align: center; margin-top: 50px;">
             <hr>
-            <p>Copyright Team 비트지니어스 - 비트알고 프로젝트 &copy; 2024. All Rights Reserved.</p>
+            <p>&copy; 2024 Team 비트지니어스 - 비트알고 프로젝트. All Rights Reserved.</p>
         </footer>
         """,
         unsafe_allow_html=True
