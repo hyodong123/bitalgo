@@ -12,6 +12,7 @@ from collections import Counter
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import re
+import matplotlib.font_manager as fm
 
 ########################### 비트알고 프로젝트 소개 ##############################
 # 비트알고 프로젝트 소개
@@ -27,14 +28,22 @@ def show_project_intro():
     # 워드 클라우드 생성 및 표시 (프로젝트 주요 키워드)
     st.write("**프로젝트 주요 키워드 워드 클라우드**")
     try:
+        # 한글 폰트 설정
+        font_path = "/usr/share/fonts/truetype/nanum/NanumGothic.ttf"  # 나눔고딕 폰트 경로
+        if not fm.findfont(fm.FontProperties(fname=font_path)):
+            st.warning("한글 폰트를 찾을 수 없습니다. 시스템에 적절한 한글 폰트를 설치하세요.")
+        
         keywords = '비트알고 실시간 가상자산 시세 기술적 분석 이동평균 MACD 볼린저밴드 CCI 투자'
-        wordcloud = WordCloud(width=800, height=400, background_color='white').generate(keywords)
+        wordcloud = WordCloud(font_path=font_path, width=800, height=400, background_color='white').generate(keywords)
+        
         plt.figure(figsize=(10, 5))
         plt.imshow(wordcloud, interpolation='bilinear')
         plt.axis('off')
         st.pyplot(plt)
     except ModuleNotFoundError:
         st.error("WordCloud 모듈을 찾을 수 없습니다. 'pip install wordcloud' 명령어로 설치하세요.")
+    except FileNotFoundError:
+        st.error("한글 폰트를 찾을 수 없습니다. 나눔고딕 폰트를 설치하거나 폰트 경로를 확인하세요.")
         
 ########################### 실시간 가상자산 시세 ##############################
 # 가상자산 정보 가져오기 함수
