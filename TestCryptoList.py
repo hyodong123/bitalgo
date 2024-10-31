@@ -13,27 +13,29 @@ from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import re
 
-########################### 프로젝트 소개 페이지 ##############################
+########################### 비트알고 프로젝트 소개 ##############################
+# 비트알고 프로젝트 소개
 def show_project_intro():
-    st.markdown("<h2 style='font-size:30px;'>비트알고 프로젝트 소개</h2>", unsafe_allow_html=True)
+    st.write("**비트알고 프로젝트**")
     st.write('''
-비트알고는 가상화폐 투자자들을 위한 교육 중심의 플랫폼으로, 사용자들이 가상화폐 시장에 쉽게 접근하고 학습할 수 있도록 돕는 투자 교육 플랫폼입니다.
-
-비트알고는 투자에 대한 깊은 지식이 없는 사용자도 가상화폐 시장의 기초부터 배워나갈 수 있으며, 차트를 분석하거나 어려웠던 경제 용어 등 
-많은 것들을 학습할 수 있습니다.
-이러한 과정에서 투자의 원리를 배우고 성장할 수 있도록 설계되었습니다.
-비트알고는 사용자 중심의 기능과 교육 서비스를 지속적으로 개선하며, 
-누구나 쉽게 가상화폐 투자를 이해하고 참여할 수 있는 환경을 만들어가는 것을 목표로 하고 있습니다. 
+        비트알고 프로젝트는 사용자에게 실시간 가상자산 시세 정보를 제공하고,
+        다양한 기술적 분석 도구를 활용하여 시장 데이터를 시각화하는 플랫폼입니다.
+        주요 기능으로는 가상자산 시세 확인, 이동평균, MACD, 볼린저 밴드 등 다양한 기술적 지표를 제공하여
+        사용자들이 보다 효과적으로 투자 결정을 할 수 있도록 돕습니다.
     ''')
 
     # 워드 클라우드 생성 및 표시 (프로젝트 주요 키워드)
     st.write("**프로젝트 주요 키워드 워드 클라우드**")
-    keywords = '비트알고 실시간 가상자산 시세 기술적 분석 이동평균 MACD 볼린저밴드 CCI 투자'
-    wordcloud = WordCloud(width=800, height=400, background_color='white').generate(keywords)
-    plt.figure(figsize=(10, 5))
-    plt.imshow(wordcloud, interpolation='bilinear')
-    plt.axis('off')
-    st.pyplot(plt)
+    try:
+        keywords = '비트알고 실시간 가상자산 시세 기술적 분석 이동평균 MACD 볼린저밴드 CCI 투자'
+        wordcloud = WordCloud(width=800, height=400, background_color='white').generate(keywords)
+        plt.figure(figsize=(10, 5))
+        plt.imshow(wordcloud, interpolation='bilinear')
+        plt.axis('off')
+        st.pyplot(plt)
+    except ModuleNotFoundError:
+        st.error("WordCloud 모듈을 찾을 수 없습니다. 'pip install wordcloud' 명령어로 설치하세요.")
+        
 ########################### 실시간 가상자산 시세 ##############################
 # 가상자산 정보 가져오기 함수
 def get_all_crypto_info():
