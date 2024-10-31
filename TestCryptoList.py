@@ -12,23 +12,8 @@ from collections import Counter
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import re
-import matplotlib.font_manager as fm
-
-import streamlit as st
-import numpy as np
-import pandas as pd
-import requests
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-from streamlit_option_menu import option_menu
-import plotly.express as px  # 오류 해결을 위한 추가
-from googletrans import Translator
-import streamlit.components.v1 as components
-from collections import Counter
-from wordcloud import WordCloud
-import matplotlib.pyplot as plt
-import re
 import urllib.request
+from konlpy.tag import Okt
 
 ########################### 비트알고 프로젝트 소개 ##############################
 # 비트알고 프로젝트 소개
@@ -49,8 +34,13 @@ def show_project_intro():
         font_path = "./NanumGothic-Regular.ttf"
         urllib.request.urlretrieve(font_url, font_path)
 
+        # 형태소 분석기 사용하여 키워드 추출
+        okt = Okt()
         keywords = '비트알고 실시간 가상자산 시세 기술적 분석 이동평균 MACD 볼린저밴드 CCI 투자'
-        wordcloud = WordCloud(font_path=font_path, width=800, height=400, background_color='white').generate(keywords)
+        nouns = okt.nouns(keywords)
+        keyword_text = ' '.join(nouns)
+
+        wordcloud = WordCloud(font_path=font_path, width=800, height=400, background_color='white').generate(keyword_text)
         
         plt.figure(figsize=(10, 5))
         plt.imshow(wordcloud, interpolation='bilinear')
@@ -60,6 +50,8 @@ def show_project_intro():
         st.error("WordCloud 모듈을 찾을 수 없습니다. 'pip install wordcloud' 명령어로 설치하세요.")
     except FileNotFoundError:
         st.error("한글 폰트를 찾을 수 없습니다. 폰트 경로를 확인하세요.")
+    except Exception as e:
+        st.error(f"오류가 발생했습니다: {e}")
         
 ########################### 실시간 가상자산 시세 ##############################
 # 가상자산 정보 가져오기 함수
