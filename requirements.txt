@@ -7,3 +7,4 @@ googletrans
 streamlit-option-menu
 wordcloud
 matplotlib
+pillow
