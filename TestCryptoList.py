@@ -13,6 +13,7 @@ from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import re
 import urllib.request
+from PIL import Image
 
 ########################### 비트알고 프로젝트 소개 ##############################
 # 비트알고 프로젝트 소개
@@ -37,13 +38,13 @@ def show_project_intro():
         keywords = '비트알고 실시간 가상자산 시세 기술적 분석 이동평균 MACD 볼린저밴드 CCI 투자'
         keyword_list = keywords.split()
         keyword_counts = Counter(keyword_list)
-        keyword_text = ' '.join(keyword_list)
 
         wordcloud = WordCloud(font_path=font_path, width=800, height=400, background_color='white').generate_from_frequencies(keyword_counts)
         
         plt.figure(figsize=(10, 5))
         plt.imshow(wordcloud, interpolation='bilinear')
         plt.axis('off')
+        plt.tight_layout(pad=0)
         st.pyplot(plt)
     except ModuleNotFoundError:
         st.error("WordCloud 모듈을 찾을 수 없습니다. 'pip install wordcloud' 명령어로 설치하세요.")
@@ -51,7 +52,7 @@ def show_project_intro():
         st.error("한글 폰트를 찾을 수 없습니다. 폰트 경로를 확인하세요.")
     except Exception as e:
         st.error(f"오류가 발생했습니다: {e}")
-
+        
 ########################### 실시간 가상자산 시세 ##############################
 # 가상자산 정보 가져오기 함수
 def get_all_crypto_info():
