@@ -28,7 +28,6 @@ def show_project_intro():
     ''')
 
     # 워드 클라우드 생성 및 표시 (프로젝트 주요 키워드)
-    st.write("**프로젝트 주요 키워드 워드 클라우드**")
     try:
         # 웹에서 한글 폰트 다운로드
         font_url = "https://github.com/google/fonts/raw/main/ofl/nanumgothic/NanumGothic-Regular.ttf"
