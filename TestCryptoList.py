@@ -16,6 +16,7 @@ import urllib.request
 from PIL import Image
 
 ########################### 비트알고 프로젝트 소개 ##############################
+
 # 비트알고 프로젝트 소개
 def show_project_intro():
     st.write("**비트알고 프로젝트**")
@@ -39,7 +40,7 @@ def show_project_intro():
         keyword_list = keywords.split()
         keyword_counts = Counter(keyword_list)
 
-        wordcloud = WordCloud(font_path=font_path, width=800, height=400, background_color='white').generate_from_frequencies(keyword_counts)
+        wordcloud = WordCloud(font_path=font_path, width=1200, height=800, background_color='white').generate_from_frequencies(keyword_counts)
         
         plt.figure(figsize=(10, 5))
         plt.imshow(wordcloud, interpolation='bilinear')
